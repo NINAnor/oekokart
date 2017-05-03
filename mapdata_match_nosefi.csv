@@ -1,0 +1,61 @@
+Kode	Arealdekke, Nivå 1	Arealdekke, Nivå 2	Arealdekke, Nivå 3	FinlandName	FinalndKode	SverigeName	SverigeKode	NorgeName	NorgeKode
+									
+	Other open area		Motor traffic area	Motor traffic area	32421				
+	Built-up area, unspecified		Cemetery	Cemetery	32200			Gravplass	Gravplass
+	Other open area	Sand		Sand	34300				
+	Industrial building area (removed feature)	Waste tip		Waste tip	32300	BEBIND	Industrial area (Polygon)	Industriområde	
+	Other open area	Rock - area		Rock - area	34100			(Steintipp)	(Steintipp)
+	Other open area	Rocky area		Rocky area	34700			(Steintipp)	(Steintipp)
+	Built-up area, unspecified	Airfield area		Airfield area				Lufthavn	Lufthavn
+	Built-up area, unspecified (Polygon)		Airfield runway (stored in subclasses)	Airfield runway (stored in subclasses)	32410	BEBLÅG	Low built-up area (Polygon)	Rullebane	Rullebane
+	Built-up area, unspecified (Polygon)		Airfield runway, paved	Airfield runway, paved	32411	BEBLÅG	Low built-up area (Polygon)	Rullebane	Rullebane
+	Built-up area, unspecified (Polygon)		Airfield runway, unpaved	Airfield runway, unpaved	32412			Rullebane	Rullebane
+	Built-up area, unspecified (Polygon)	Other airfield area		Other airfield area	32413	BEBYGG	Built-up area, unspecified (Polygon)	Lufthavn	Lufthavn
+	Built-up area, unspecified (Polygon)		Other airfield area, paved	Other airfield area, paved	32415	BEBYGG	Built-up area, unspecified (Polygon)	Lufthavn	Lufthavn
+	Built-up area, unspecified (Polygon)		Other airfield area, unpaved	Other airfield area, unpaved	32416	BEBYGG	Built-up area, unspecified (Polygon)	Lufthavn	Lufthavn
+	Industrial area (Polygon)	Quarry		Quarry	32500	BEBIND	Industrial area (Polygon)	Steinbrudd	Steinbrudd
+	Industrial area (Polygon)	Mineral resources extraction area		Mineral resources extraction area		BEBIND	Industrial area (Polygon)	Industriområde	Industriområde
+	Industrial area (Polygon)	Mineral resources extraction area, coarse-grained material		Mineral resources extraction area, coarse-grained material	32111	BEBIND	Industrial area (Polygon)	Industriområde	Industriområde
+	Industrial area (Polygon)	Mineral resources extraction area, fine-grained material		Mineral resources extraction area, fine-grained material	32112	BEBIND	Industrial area (Polygon)	Industriområde	Industriområde
+	Resources extraction area, organic material			Resources extraction area, organic material	32113	ODLÅKER	ODLÅKER Arable land (Polygon)	DyrketMark	DyrketMark
+	Cultivated land			Cultivated land		ODLÅKER	ODLÅKER Arable land (Polygon)	DyrketMark	DyrketMark
+	Other open area	Field		Field	32611	ODLEJÅK	Unused arable land (Polygon)	ÅpentOmråde	ÅpentOmråde
+	Other open area	Garden		Garden	32612	ÖPMARK	Other open area (Polygon)		
+	Other open area	Meadow		Meadow	32800	ÖPMARK	Other open area (Polygon)	ÅpentOmråde	ÅpentOmråde
+	Other open area	Park		Park	32900	ÖPMARK	Other open area (Polygon)	Park	Park
+	Other open area	Railway yard (removed feature)		Railway yard (removed feature)	32431	BEBYGG	Built-up area, unspecified (Polygon)		
+	Other open area	Paludified land		Paludified land	35300	ÖPMARK	Other open area (Polygon)	Myr	Myr
+	Other open area	Peatland, (stored in subclasses)		Peatland, (stored in subclasses)	35400	ÖPMARK	Other open area (Polygon)	Myr	Myr
+	Other open area	Open bog, easy to traverse treeless		Open bog, easy to traverse treeless	35411	ÖPMARK	Other open area (Polygon)	Myr	Myr
+	Open forestland	Bog, easy to traverse forested		Bog, easy to traverse forested	35412	SKOGBARR	Coniferous and mixed forest (Polygon)	Skog	Skog
+	Open forestland	Bog, easy to traverse forested		Bog, easy to traverse forested	35412	SKOGLÖV	Deciduous forest (Polygon)	Skog	Skog
+	Open forestland	Bog, easy to traverse forested		Bog, easy to traverse forested	35412	SKOGFBJ	Mountain birch forest (Polygon)	Skog	Skog
+	Other open area	Open fen, difficult to traverse treeless		Open fen, difficult to traverse treeless	35421	ÖPMARK	Other open area (Polygon)	Myr	Myr
+	Open forestland	Fen, difficult to traverse forested		Fen, difficult to traverse forested	35422	SKOGBARR	Coniferous and mixed forest (Polygon)	Skog	Skog
+	Open forestland	Fen, difficult to traverse forested		Fen, difficult to traverse forested	35422	SKOGLÖV	Deciduous forest (Polygon)	Skog	Skog
+	Open forestland	Fen, difficult to traverse forested		Fen, difficult to traverse forested	35422	SKOGFBJ	Mountain birch forest (Polygon)	Skog	Skog
+	Earth fill			Earth fill	33000	OSPEC			
+	Sports and recreation area			Sports and recreation area	33100	BEBYGG	Built-up area, unspecified (Polygon)	SportIdrettPlass	SportIdrettPlass
+	Sports and recreation area	Alpinbakke (skiing slope)		Sports and recreation area	33100	BEBYGG	Built-up area, unspecified (Polygon)	Alpinbakke	Alpinbakke
+	Sports and recreation area	Golfbane (golf course)		Sports and recreation area	33100	BEBYGG	Built-up area, unspecified (Polygon)	Golfbane	Golfbane
+	Water (lakes and large rivers)	Standing water		Standing water		VATTEN	Water (lakes and large rivers)		
+	Water (lakes and large rivers)	Lake water		Lake water	36200	VATTEN	Water (lakes and large rivers)	Innsjø	Innsjø
+	Water (lakes and large rivers)	Sea water		Sea water	36211	VATTEN	Water (lakes and large rivers)	Havflate	Havflate
+	Water (lakes and large rivers)	Watercourse area		Watercourse area	36313	VATTEN	Water (lakes and large rivers)	ElvBekk	ElvBekk
+	Water (lakes and large rivers)	Silting water area		Silting water area	38300	VATTEN	Water (lakes and large rivers)		
+	Water (lakes and large rivers)	Shallows		Shallows	38700	VATTEN	Water (lakes and large rivers)		
+	Other open space			Other open space		ÖPMARK	Other open area (Polygon)	ÅpentOmråde	ÅpentOmråde
+	Open forestland	Coniferous and mixed forest (Polygon)		Open forestland	39110	SKOGBARR	Coniferous and mixed forest (Polygon)	Skog	Skog
+	Open forestland	Deciduous forest (Polygon)		Open forestland	39110	SKOGLÖV	Deciduous forest (Polygon)	Skog	Skog
+	Open forestland	Mountain birch forest (Polygon)		Open forestland	39110	SKOGFBJ	Mountain birch forest (Polygon)	Skog	Skog
+	Brush			Brush	39120				
+	Other open area	Open reliction		Open reliction	39130	ÖPMARK	Other open area (Polygon)	ÅpentOmråde	ÅpentOmråde
+	Build-up area (removed feature)			Build-up area (removed feature)		BEBYGG	Built-up area, unspecified (Polygon)	BymessigBebyggelse	BymessigBebyggelse
+	Build-up area (removed feature)	Residential building area, 3+ floors (removed feature)		Residential building area, 3+ floors (removed feature)	39211	BEBHÖG	High built-up area (Polygon)	BymessigBebyggelse	BymessigBebyggelse
+	Build-up area (removed feature)	Residential building area, 1-2 floors (removed feature)		Residential building area, 1-2 floors (removed feature)	39212	BEBLÅG	Low built-up area (Polygon)	BymessigBebyggelse	BymessigBebyggelse
+	Build-up area (removed feature)	Residential building area, 1-2 floors (removed feature)	Hyttefelt (cottage area)	Residential building area, 1-2 floors (removed feature)	39212	BEBLÅG	Low built-up area (Polygon)	Hyttefelt	Hyttefelt
+	Build-up area (removed feature)	Industrial building area (removed feature)		Industrial building area (removed feature)	39213	BEBIND	Industrial area (Polygon)	Industriområde	Industriområde
+	Flooded area			Flooded area	38400	VATTEN	Water (lakes and large rivers)		
+	Storage area			Storage area	38900	BEBYGG	Built-up area, unspecified (Polygon)		
+	Boulders in water			Boulders in water	38600	OSPEC	Unspecified area, often code for incorrect area	Steintipp	Steintipp
+						ÖPGLAC	Glacier (Polygon)	SnøIsbre	SnøIsbre
