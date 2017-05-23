@@ -544,6 +544,10 @@ ALTER TABLE "zofie_cimburova"."clip_sweden"
 CREATE INDEX clip_sweden_gix ON "zofie_cimburova"."clip_sweden" USING GIST (geom);
 VACUUM ANALYZE "zofie_cimburova"."clip_sweden";	 
 	
+UPDATE "zofie_cimburova"."clip_sweden"
+SET geom = ST_CollectionExtract(geom, 3)
+WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';	
+	
 -- Norway: - 9 min
 CREATE TABLE "zofie_cimburova"."clip_norway" AS (    
 	SELECT LC.gid AS orig_gid, "ID_l1", "ID_l2", "ID_l3", ST_Intersection(LC.geom, norway.geom) AS geom
@@ -624,6 +628,10 @@ UPDATE "zofie_cimburova"."clip_finland_terr2"
 	WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';
 	
 -- clip Finland buildings
+UPDATE "zofie_cimburova"."valid_finland_buildings"
+SET geom = ST_CollectionExtract(geom, 3)
+WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';
+
 CREATE TABLE "zofie_cimburova"."clip_finland_buildings" AS (    
 	SELECT LC.gid AS orig_gid, "ID_l1", "ID_l2", "ID_l3", ST_Intersection(LC.geom, finland.geom) AS geom
 	FROM "zofie_cimburova"."valid_finland_buildings" AS LC, 
@@ -686,6 +694,10 @@ INSERT INTO "zofie_cimburova"."clip_finland_forest"
 ALTER TABLE "zofie_cimburova"."clip_finland_forest" 
 	ADD COLUMN gid SERIAL PRIMARY KEY;	
 	
+UPDATE "zofie_cimburova"."clip_finland_forest"
+SET geom = ST_CollectionExtract(geom, 3)
+WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';
+	
 	
 	
 ------------------------------------------------------------
@@ -708,13 +720,6 @@ UPDATE "zofie_cimburova"."clip_sweden"
 SET "ID_l3" = "ID_l2" * 10
 WHERE "ID_l3" IS NULL;
 
-UPDATE "Topography"."Sweden_Vagkartan_LandTypes_all_polygons"
-SET "ID_l2" = "ID_l1" * 100
-WHERE "ID_l2" IS NULL      
-      
-UPDATE "Topography"."Sweden_Vagkartan_LandTypes_all_polygons"
-SET "ID_l3" = "ID_l2" * 10
-WHERE "ID_l3" IS NULL;
 
 -- Norway 
 UPDATE "zofie_cimburova"."clip_norway"
@@ -732,6 +737,74 @@ WHERE "ID_l2" IS NULL
 UPDATE "zofie_cimburova"."valid_norway"
 SET "ID_l3" = "ID_l2" * 10
 WHERE "ID_l3" IS NULL;
+
+-- Finland buildings  
+UPDATE "zofie_cimburova"."clip_finland_buildings"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."clip_finland_buildings"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_buildings"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_buildings"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;  
+
+-- Finland dense
+UPDATE "zofie_cimburova"."clip_finland_dense"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."clip_finland_dense"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_dense"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_dense"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;  
+
+-- Finland terr1
+UPDATE "zofie_cimburova"."clip_finland_terr1"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."clip_finland_terr1"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_terr1"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_terr1"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;  
+
+-- Finland terr2
+UPDATE "zofie_cimburova"."clip_finland_terr2"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."clip_finland_terr2"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_terr2"
+SET "ID_l2" = "ID_l1" * 100
+WHERE "ID_l2" IS NULL;
+
+UPDATE "zofie_cimburova"."valid_finland_terr2"
+SET "ID_l3" = "ID_l2" * 10
+WHERE "ID_l3" IS NULL;  
 
 
 ------------------------------------------------------------
@@ -834,14 +907,148 @@ ALTER TABLE "zofie_cimburova"."valid_finland"
 	ADD COLUMN "ID_l1" smallint,
 	ADD COLUMN "ID_l2" smallint,
 	ADD COLUMN "ID_l3" smallint;
-
--- validate geometry	
 	
 -- fill columns
+UPDATE "zofie_cimburova"."clip_finland_forest"
+SET "ID_l1" = 7,
+  	"ID_l2" = 700,
+    "ID_l3" = 7000;
+	
+UPDATE "zofie_cimburova"."valid_finland_forest"
+SET "ID_l1" = 7,
+  	"ID_l2" = 700,
+    "ID_l3" = 7000;
+
 
 -- union Buildings, Densely built areas, Terrain 1, Terrain 2 and Forest
 
--- create index
 
 
+------------------------------------------------------------
+-- 12. Check self-overlaps
+------------------------------------------------------------	
+-- Norway
+CREATE TABLE "zofie_cimburova"."overlaps_norway" AS
+	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_norway" AS aa, 
+		 "zofie_cimburova"."clip_norway" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+
+-- Sweden
+CREATE TABLE "zofie_cimburova"."overlaps_sweden" AS
+	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_sweden" AS aa, 
+		 "zofie_cimburova"."clip_sweden" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+		  
+-- Finland buildings
+CREATE TABLE "zofie_cimburova"."overlaps_finland_build" AS
+	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_finland_buildings" AS aa, 
+		 "zofie_cimburova"."clip_finland_buildings" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+		  
+-- Finland densely built areas
+CREATE TABLE "zofie_cimburova"."overlaps_finland_dense" AS
+	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_finland_dense" AS aa, 
+		 "zofie_cimburova"."clip_finland_dense" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+		  
+-- Finland terrain 1
+CREATE TABLE "zofie_cimburova"."overlaps_finland_terr1" AS
+	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_finland_terr1" AS aa, 
+		 "zofie_cimburova"."clip_finland_terr1" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+		  
+-- Finland terrain 2
+CREATE TABLE "zofie_cimburova"."overlaps_finland_terr2" AS
+	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_finland_terr2" AS aa, 
+		 "zofie_cimburova"."clip_finland_terr2" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+		
+		
+-------------------------------------------------------------------------
+-- TODO - repair gaps in Norway - error in gaps
+-- Norway - repair gaps	
+
+
+-- create single part gaps
+CREATE TABLE "zofie_cimburova"."gap_norway_single" (AS
+	SELECT gid, 
+          (ST_DUMP(geom)).geom::geometry(Polygon,25833) AS geom 
+   	FROM "zofie_cimburova"."gap_norway"
+    WHERE ST_GeometryType(geom) = 'ST_Polygon' OR 
+          ST_GeometryType(geom) = 'ST_MultiPolygon'))
+
+-- add columns for land cover types
+ALTER TABLE "zofie_cimburova"."gap_norway_single" 
+	ADD COLUMN "ID_l1" smallint,
+	ADD COLUMN "ID_l2" smallint,
+	ADD COLUMN "ID_l3" smallint;
+
+-- for each gap find its neighbours using ST_intersects
+INSERT INTO "zofie_cimburova"."gap_norway_single" 
+	SELECT DISTINCT ON (gaps.gid) gaps.gid, gaps.geom, neighbours."ID_l1", neighbours."ID_l2", neighbours."ID_l3"
+	FROM "zofie_cimburova"."gap_norway_single" AS gaps
+		LEFT JOIN "zofie_cimburova"."clip_norway" AS neighbours
+  		ON ST_Intersects(gaps.geom, neighbours.geom) 
+	ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps_dump.geom, neighbours.geom), 2)) DESC
+    
+    
+
+-- if neighbour was not found
+SELECT DISTINCT ON (gaps_dump.gid) gaps_dump.gid AS orig_id, neighbours."ID_l1", neighbours."ID_l2", neighbours."ID_l3"
+FROM "zofie_cimburova"."temp_gap_norway" AS gaps_dump
+	LEFT JOIN "zofie_cimburova"."clip_norway" AS neighbours
+  	ON CASE WHEN ST_Intersects(gaps_dump.geom, neighbours.geom) THEN ST_Intersects(gaps_dump.geom, neighbours.geom)
+            ELSE ST_Distance(gaps_dump.geom, neighbours.geom) < 0.001
+       END
+WHERE gaps_dump.gid = 72 OR gaps_dump.gid =2973 OR gaps_dump.gid = 4888 
+ORDER BY gaps_dump.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, LC.geom), 2)) DESC
+
+
+
+
+
+WITH a AS (    
+    
+    SELECT DISTINCT ON (gaps.gid) '0' AS orig_id, LC."ID_l1", LC."ID_l2", LC."ID_l3", gaps.geom
+	FROM "zofie_cimburova"."temp_gap_norway" AS gaps
+		LEFT JOIN "zofie_cimburova"."clip_norway" AS LC
+  	   	ON ST_Intersects(ST_Buffer(gaps.geom,0.001), LC.geom)
+	ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, LC.geom), 2)) DESC
+
+) 
+SELECT COUNT(*) FROM a
+
+
+
+
+
+INSERT INTO "zofie_cimburova"."clip_norway"
+    WITH gaps_dump AS(
+	SELECT gid, (ST_DUMP(geom)).geom::geometry(Polygon,25833) AS geom 
+   	FROM "zofie_cimburova"."gap_norway"
+    WHERE ST_GeometryType(geom) = 'ST_Polygon' OR 
+          ST_GeometryType(geom) = 'ST_MultiPolygon')
+        
+	SELECT DISTINCT ON (gaps.gid) '0' AS orig_id, LC."ID_l1", LC."ID_l2", LC."ID_l3", gaps.geom
+	FROM gaps_dump AS gaps
+		LEFT JOIN "zofie_cimburova"."clip_norway" AS LC
+  	   	ON ST_Intersects(ST_Buffer(gaps.geom,0.001), LC.geom)
+	ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, LC.geom), 2)) DESC
+
+
+
+	
+-- TODO merge finnish datasets
 
