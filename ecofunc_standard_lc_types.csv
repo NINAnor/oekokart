@@ -1,0 +1,76 @@
+Code N1;Description;Code N2;Description;Code N3;Description
+1;Unknown;100;Unknown;1000;Unknown
+2;Glacier;200;Glacier;2000;Glacier
+3;Builtup area;300;Builtup area, unknown;3000;Builtup area, unknown
+;;301;Holiday building;3010;Holiday building, unknown floors
+;;;;3011;Holiday building, 1-2 floors
+;;;;3012;Holiday building, 3+ floors
+;;302;Residential building;3020;Residential building, unknown floors
+;;;;3021;Residential building, 1-2 floors
+;;;;3022;Residential building, 3+ floors
+;;303;Cemetery;3030;Cemetery
+;;304;Airfield runway;3040;Airfield runway, unknown
+;;;;3041;Airfield runway, paved
+;;;;3042;Airfield runway, unpaved
+;;305;Other airfield area;3050;Other airfield area, unknown
+;;;;3051;Other airfield area, paved
+;;;;3052;Other airfield area, unpaved
+;;306;Square;3060;Square
+;;307;Motor traffic area;3070;Motor traffic area
+;;308;Storage area;3080;Storage area
+;;309;Railway yard;3090;Railway yard
+;;310;Religious building;3100;Religious building, unknown floors
+;;;;3101;Religious building, 1-2 floors
+;;;;3102;Religious building, 3+ floors
+;;311;Industrial building;3110;Industrial building, unknown floors
+;;;;3111;Industrial building, 1-2 floors
+;;;;3112;Industrial building, 3+ floors
+;;312;Office building;3120;Office building, unknown floors
+;;;;3121;Office building, 1-2 floors
+;;;;3122;Office building, 3+ floors
+4;Agricultural area;400;Agricultural area, unknown;4000;Agricultural area, unknown
+;;401;Field;4010;Field
+;;402;Meadow;4020;Meadow
+5;Earth fill;500;Earth fill;5000;Earth fill
+6;Industrial area;600;Industrial area, unknown;6000;Industrial area, unknown
+;;601;Mineral resources extraction area;6010;Mineral resources extraction area, unknown material
+;;;;6011;Mineral resources extraction area, coarse-grained material
+;;;;6012;Mineral resources extraction area, fine-grained material
+;;602;Quarry;6020;Quarry
+;;603;Waste tip;6030;Waste tip
+;;604;Organic material extraction area;6040;Organic material extraction area
+7;Forest;700;Forest, unknown;7000;Forest, unknown
+;;701;Forested bog;7010;Forested bog, unknown
+;;;;7011;Forested bog, easy to traverse
+;;;;7012;Forested fen, difficult to traverse
+;;702;Coniferous and mixed forest;7020;Coniferous and mixed forest
+;;703;Mountain birch forest;7030;Mountain birch forest
+;;704;Deciduous forest;7040;Deciduous forest
+;;705;Brush;7050;Brush
+8;Natural open area;800;Natural open area, unknown;8000;Natural open area, unknown
+;;801;Rocky area;8010;Rocky area
+;;802;Open bog;8020;Open bog, unknown
+;;;;8021;Open bog, easy to traverse
+;;;;8022;Open fen, difficult to traverse
+;;;;8023;Paludified land
+;;803;Sand;8030;Sand
+;;804;Open reliction;8040;Open reliction
+;;805;Boulders in water;8050;Boulders in water
+9;Cultivated open area;900;Cultivated open area, unknown;9000;Cultivated open area, unknown
+;;901;Park;9010;Park
+;;902;Garden;9020;Garden
+;;903;Orchard;9030;Orchard
+11;Sports and recreation area;1100;Sports and recreation area, unknown;11000;Sports and recreation area, unknown
+;;1101;Alpinbakke (skiing slope);11010;Alpinbakke (skiing slope)
+;;1102;Golfbane (golf course);11020;Golfbane (golf course)
+12;Water;1200;Water, unknown;12000;Water, unknown
+;;1201;Watercourse area;12010;Watercourse area
+;;1202;Sea water;12020;Sea water
+;;1203;Lake water;12030;Lake water
+;;1204;Shallows;12040;Shallows
+;;1205;Silting water area;12050;Silting water area
+;;1206;Standing water;12060;Standing water
+;;1207;Flooded area;12070;Flooded area
+;;;;;
+;;;;;
+;;;;;
