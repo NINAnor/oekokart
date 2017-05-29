@@ -1,3 +1,42 @@
+-- intersection when problems like "non-noded intersection" (in clip_sweden)
+-- https://gis.stackexchange.com/questions/50399/how-best-to-fix-a-non-noded-intersection-problem-in-postgis
+CREATE OR REPLACE FUNCTION "zofie_cimburova".safe_isect(geom_a geometry, geom_b geometry)
+RETURNS geometry AS
+$$
+BEGIN
+    RETURN ST_Intersection(geom_a, geom_b);
+    EXCEPTION
+        WHEN OTHERS THEN
+            BEGIN
+                RETURN ST_Intersection(ST_Buffer(geom_a, 0.0000001), ST_Buffer(geom_b, 0.0000001));
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RETURN ST_GeomFromText('POLYGON EMPTY');
+    END;
+END
+$$
+LANGUAGE 'plpgsql' STABLE STRICT;
+
+-- difference when problems like "non-noded intersection" (in clip_sweden)
+CREATE OR REPLACE FUNCTION "zofie_cimburova".safe_diff(geom_a geometry, geom_b geometry)
+RETURNS geometry AS
+$$
+BEGIN
+    RETURN ST_Difference(geom_a, geom_b);
+    EXCEPTION
+        WHEN OTHERS THEN
+            BEGIN
+                RETURN ST_Difference(ST_Buffer(geom_a, 0.0000001), ST_Buffer(geom_b, 0.0000001));
+                EXCEPTION
+                    WHEN OTHERS THEN
+                        RETURN ST_GeomFromText('POLYGON EMPTY');
+    END;
+END
+$$
+LANGUAGE 'plpgsql' STABLE STRICT;
+
+
+
 ------------------------------------------------------------
 -- 1. add comlumns for standard land cover classes to Norway, Sweden, Finland datasets
 ------------------------------------------------------------
@@ -864,36 +903,76 @@ INSERT INTO "zofie_cimburova"."clip_sweden"
 
 	
 -- Norway	
--- create datasets of tiles in norway
-CREATE TABLE "zofie_cimburova"."clip_norway_tiles" AS (    
-	SELECT tiles.gid AS orig_gid, ST_Intersection(tiles.geom, norway.geom) AS geom
-	FROM "Topography"."Norway_N50_AdminFlate" AS tiles, 
-    	(SELECT * 
-   		 FROM "AdministrativeUnits"."Fenoscandia_Country_polygon" 
-    	 WHERE "countryCode" = 'NO') AS norway
-	WHERE NOT ST_Contains(norway.geom, tiles.geom) AND    	  
-    	  ST_Intersects(norway.geom, tiles.geom));
-          
-INSERT INTO "zofie_cimburova"."clip_norway_tiles"
-	SELECT tiles.gid, tiles.geom
-    FROM "Topography"."Norway_N50_AdminFlate" AS tiles,
-    	(SELECT * 
-   		 FROM "AdministrativeUnits"."Fenoscandia_Country_polygon" 
-    	 WHERE "countryCode" = 'NO') AS norway
-    WHERE ST_Contains(norway.geom, tiles.geom);
-	
--- subtract all norwegian LC polygons	- 24 min
+-- subtract all norwegian LC polygons from Municipality map (other small units not found)
 CREATE TABLE "zofie_cimburova"."gap_norway" AS (
 	SELECT  tile.gid,     
         COALESCE(
             ST_Difference(tile.geom, ST_Union(LC.geom)), 
             tile.geom
         ) AS geom 
-	FROM "zofie_cimburova"."clip_norway_tiles" AS tile 
+	FROM "AdministrativeUnits"."Fenoscandia_Municipality_polygon" AS tile 
 	LEFT JOIN "zofie_cimburova"."valid_norway" AS LC 
 		ON tile.geom && LC.geom
+    WHERE tile."countryCode" = 'NO'
 	GROUP BY tile.gid, tile.geom);
+    
+-- delete polygons with zero area
+DELETE FROM "zofie_cimburova"."gap_norway3"
+WHERE ST_Area(geom) = 0
 
+-- create single part gaps
+CREATE TABLE "zofie_cimburova"."gap_norway_single" AS (
+	SELECT gid AS orig_gid, 
+          (ST_DUMP(geom)).geom::geometry(Polygon,25833) AS geom 
+   	FROM "zofie_cimburova"."gap_norway"
+    WHERE ST_GeometryType(geom) = 'ST_Polygon' OR 
+          ST_GeometryType(geom) = 'ST_MultiPolygon')
+		  
+-- add primary key
+ALTER TABLE "zofie_cimburova"."gap_norway_single" 
+	ADD COLUMN gid SERIAL PRIMARY KEY;
+	
+-- add columns for land cover types
+ALTER TABLE "zofie_cimburova"."gap_norway_single" 
+	ADD COLUMN "ID_l1" smallint,
+	ADD COLUMN "ID_l2" smallint,
+	ADD COLUMN "ID_l3" smallint;
+	
+-- for each gap find its neighbours using ST_intersects and assign the gap LC of the neighbor
+UPDATE "zofie_cimburova"."gap_norway_single" AS b
+	SET "ID_l1" = a."ID_l1",
+        "ID_l2" = a."ID_l2",
+        "ID_l3" = a."ID_l3"
+    FROM (
+   	 	SELECT DISTINCT ON (gaps.gid) gaps.gid, gaps.geom, neighbours."ID_l1", neighbours."ID_l2", neighbours."ID_l3"
+		FROM "zofie_cimburova"."gap_norway_single" AS gaps
+			LEFT JOIN "zofie_cimburova"."clip_norway" AS neighbours
+  			ON ST_Intersects(gaps.geom, neighbours.geom) 
+		ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, neighbours.geom), 2)) DESC) AS a
+    WHERE b.gid = a.gid
+   
+-- 16 gaps were not assigned anything - choose neighbour of buffer
+UPDATE "zofie_cimburova"."gap_norway_single" AS b
+	SET "ID_l1" = a."ID_l1",
+        "ID_l2" = a."ID_l2",
+        "ID_l3" = a."ID_l3"
+    FROM (
+        WITH buffered_gaps AS (
+            SELECT ST_Buffer(geom, 0.001) AS geom, "ID_l1", "ID_l2", "ID_l3", gid
+            FROM "zofie_cimburova"."gap_norway_single"
+            WHERE "ID_l1" IS NULL )
+   	 	SELECT DISTINCT ON (gaps.gid) gaps.gid, gaps.geom, neighbours."ID_l1", neighbours."ID_l2", neighbours."ID_l3"
+		FROM buffered_gaps AS gaps
+			LEFT JOIN "zofie_cimburova"."clip_norway" AS neighbours
+  			ON ST_Intersects(gaps.geom, neighbours.geom)
+		ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, neighbours.geom), 2)) DESC) AS a
+    WHERE b.gid = a.gid
+
+-- merge gaps with original dataset
+INSERT INTO "zofie_cimburova"."clip_norway"
+	SELECT orig_gid, "ID_l1", "ID_l2", "ID_l3", geom
+    FROM "zofie_cimburova"."gap_norway_single"	
+	
 	
 -- Finland should not contain any gaps due to the origin of the data,
 -- i.e. subtracting from the country area
@@ -929,123 +1008,194 @@ SET "ID_l1" = 7,
 ------------------------------------------------------------	
 -- Norway
 CREATE TABLE "zofie_cimburova"."overlaps_norway" AS
-	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area(ST_Intersection(aa.geom, bb.geom))
 	FROM "zofie_cimburova"."clip_norway" AS aa, 
 		 "zofie_cimburova"."clip_norway" AS bb
 	WHERE aa.gid > bb.gid AND
 		  ST_Overlaps(aa.geom, bb.geom)
+		  
+-- part of larger of concerned polygons kept, part of smaller polygon deleted
+WITH update_table AS (
+	SELECT gid_1 AS overlap_gid1,
+		CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN ST_Difference(poly_b.geom, poly_a.geom)
+   	 		 ELSE ST_Difference(poly_a.geom, poly_b.geom)
+   		END AS updated_poly_geom,
+   	 	CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN poly_b.gid 
+   		 	 ELSE poly_a.gid
+    	END AS updated_poly_gid
+	FROM "zofie_cimburova"."clip_norway" AS poly_a,
+		 "zofie_cimburova"."clip_norway" AS poly_b,
+     	 "zofie_cimburova"."overlaps_norway" AS overlap
+	WHERE poly_a.gid = overlap.gid_1 AND
+	  	  poly_b.gid = overlap.gid_2)
+UPDATE "zofie_cimburova"."clip_norway"
+	SET geom = update_table.updated_poly_geom
+    FROM update_table
+	WHERE gid = update_table.updated_poly_gid;	  
+		 
 
 -- Sweden
 CREATE TABLE "zofie_cimburova"."overlaps_sweden" AS
-	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area("zofie_cimburova".safe_isect(aa.geom, bb.geom))
 	FROM "zofie_cimburova"."clip_sweden" AS aa, 
 		 "zofie_cimburova"."clip_sweden" AS bb
 	WHERE aa.gid > bb.gid AND
 		  ST_Overlaps(aa.geom, bb.geom)
 		  
+-- part of larger of concerned polygons kept, part of smaller polygon deleted   
+WITH update_table AS (
+	SELECT gid_1 AS overlap_gid1,
+		CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN "zofie_cimburova".safe_diff(poly_b.geom, poly_a.geom)
+   	 		 ELSE "zofie_cimburova".safe_diff(poly_a.geom, poly_b.geom)
+   		END AS updated_poly_geom,
+   	 	CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN poly_b.gid 
+   		 	 ELSE poly_a.gid
+    	END AS updated_poly_gid
+	FROM "zofie_cimburova"."clip_sweden" AS poly_a,
+		 "zofie_cimburova"."clip_sweden" AS poly_b,
+     	 "zofie_cimburova"."overlaps_sweden" AS overlap
+	WHERE poly_a.gid = overlap.gid_1 AND
+	  	  poly_b.gid = overlap.gid_2)
+UPDATE "zofie_cimburova"."clip_sweden"
+	SET geom = update_table.updated_poly_geom
+    FROM update_table
+	WHERE gid = update_table.updated_poly_gid;	  
+		  
 -- Finland buildings
 CREATE TABLE "zofie_cimburova"."overlaps_finland_build" AS
-	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area(ST_Intersection(aa.geom, bb.geom))
 	FROM "zofie_cimburova"."clip_finland_buildings" AS aa, 
 		 "zofie_cimburova"."clip_finland_buildings" AS bb
 	WHERE aa.gid > bb.gid AND
 		  ST_Overlaps(aa.geom, bb.geom)
 		  
+-- part of larger of concerned polygons kept, part of smaller polygon deleted
+WITH update_table AS (
+	SELECT gid_1 AS overlap_gid1,
+		CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN ST_Difference(poly_b.geom, poly_a.geom)
+   	 		 ELSE ST_Difference(poly_a.geom, poly_b.geom)
+   		END AS updated_poly_geom,
+   	 	CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN poly_b.gid 
+   		 	 ELSE poly_a.gid
+    	END AS updated_poly_gid
+	FROM "zofie_cimburova"."clip_finland_buildings" AS poly_a,
+		 "zofie_cimburova"."clip_finland_buildings" AS poly_b,
+     	 "zofie_cimburova"."overlaps_finland_build" AS overlap
+	WHERE poly_a.gid = overlap.gid_1 AND
+	  	  poly_b.gid = overlap.gid_2)
+UPDATE "zofie_cimburova"."clip_finland_buildings"
+	SET geom = update_table.updated_poly_geom
+    FROM update_table
+	WHERE gid = update_table.updated_poly_gid;	
+	
+	
 -- Finland densely built areas
 CREATE TABLE "zofie_cimburova"."overlaps_finland_dense" AS
-	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area(ST_Intersection(aa.geom, bb.geom))
 	FROM "zofie_cimburova"."clip_finland_dense" AS aa, 
 		 "zofie_cimburova"."clip_finland_dense" AS bb
 	WHERE aa.gid > bb.gid AND
 		  ST_Overlaps(aa.geom, bb.geom)
 		  
+-- part of larger of concerned polygons kept, part of smaller polygon deleted
+WITH update_table AS (
+	SELECT gid_1 AS overlap_gid1,
+		CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN ST_Difference(poly_b.geom, poly_a.geom)
+   	 		 ELSE ST_Difference(poly_a.geom, poly_b.geom)
+   		END AS updated_poly_geom,
+   	 	CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN poly_b.gid 
+   		 	 ELSE poly_a.gid
+    	END AS updated_poly_gid
+	FROM "zofie_cimburova"."clip_finland_dense" AS poly_a,
+		 "zofie_cimburova"."clip_finland_dense" AS poly_b,
+     	 "zofie_cimburova"."overlaps_finland_dense" AS overlap
+	WHERE poly_a.gid = overlap.gid_1 AND
+	  	  poly_b.gid = overlap.gid_2)
+UPDATE "zofie_cimburova"."clip_finland_dense"
+	SET geom = update_table.updated_poly_geom
+    FROM update_table
+	WHERE gid = update_table.updated_poly_gid;	
+
+		  
 -- Finland terrain 1
+-- problems with geometry collection -- change
+UPDATE "zofie_cimburova"."clip_finland_terr1"
+SET geom = ST_CollectionExtract(geom, 3)
+WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';	
+
 CREATE TABLE "zofie_cimburova"."overlaps_finland_terr1" AS
-	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area(ST_Intersection(aa.geom, bb.geom))
 	FROM "zofie_cimburova"."clip_finland_terr1" AS aa, 
 		 "zofie_cimburova"."clip_finland_terr1" AS bb
 	WHERE aa.gid > bb.gid AND
 		  ST_Overlaps(aa.geom, bb.geom)
+
+-- part of larger of concerned polygons kept, part of smaller polygon deleted
+WITH update_table AS (
+	SELECT gid_1 AS overlap_gid1,
+		CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN ST_Difference(poly_b.geom, poly_a.geom)
+   	 		 ELSE ST_Difference(poly_a.geom, poly_b.geom)
+   		END AS updated_poly_geom,
+   	 	CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN poly_b.gid 
+   		 	 ELSE poly_a.gid
+    	END AS updated_poly_gid
+	FROM "zofie_cimburova"."clip_finland_terr1" AS poly_a,
+		 "zofie_cimburova"."clip_finland_terr1" AS poly_b,
+     	 "zofie_cimburova"."overlaps_finland_terr1" AS overlap
+	WHERE poly_a.gid = overlap.gid_1 AND
+	  	  poly_b.gid = overlap.gid_2)
+UPDATE "zofie_cimburova"."clip_finland_terr1"
+	SET geom = update_table.updated_poly_geom
+    FROM update_table
+	WHERE gid = update_table.updated_poly_gid;	
+
 		  
 -- Finland terrain 2
 CREATE TABLE "zofie_cimburova"."overlaps_finland_terr2" AS
-	SELECT aa.gid, bb.gid, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area(ST_Intersection(aa.geom, bb.geom))
 	FROM "zofie_cimburova"."clip_finland_terr2" AS aa, 
 		 "zofie_cimburova"."clip_finland_terr2" AS bb
 	WHERE aa.gid > bb.gid AND
 		  ST_Overlaps(aa.geom, bb.geom)
-		
-		
--------------------------------------------------------------------------
--- TODO - repair gaps in Norway - error in gaps
--- Norway - repair gaps	
 
-
--- create single part gaps
-CREATE TABLE "zofie_cimburova"."gap_norway_single" (AS
-	SELECT gid, 
-          (ST_DUMP(geom)).geom::geometry(Polygon,25833) AS geom 
-   	FROM "zofie_cimburova"."gap_norway"
-    WHERE ST_GeometryType(geom) = 'ST_Polygon' OR 
-          ST_GeometryType(geom) = 'ST_MultiPolygon'))
-
--- add columns for land cover types
-ALTER TABLE "zofie_cimburova"."gap_norway_single" 
-	ADD COLUMN "ID_l1" smallint,
-	ADD COLUMN "ID_l2" smallint,
-	ADD COLUMN "ID_l3" smallint;
-
--- for each gap find its neighbours using ST_intersects
-INSERT INTO "zofie_cimburova"."gap_norway_single" 
-	SELECT DISTINCT ON (gaps.gid) gaps.gid, gaps.geom, neighbours."ID_l1", neighbours."ID_l2", neighbours."ID_l3"
-	FROM "zofie_cimburova"."gap_norway_single" AS gaps
-		LEFT JOIN "zofie_cimburova"."clip_norway" AS neighbours
-  		ON ST_Intersects(gaps.geom, neighbours.geom) 
-	ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps_dump.geom, neighbours.geom), 2)) DESC
-    
-    
-
--- if neighbour was not found
-SELECT DISTINCT ON (gaps_dump.gid) gaps_dump.gid AS orig_id, neighbours."ID_l1", neighbours."ID_l2", neighbours."ID_l3"
-FROM "zofie_cimburova"."temp_gap_norway" AS gaps_dump
-	LEFT JOIN "zofie_cimburova"."clip_norway" AS neighbours
-  	ON CASE WHEN ST_Intersects(gaps_dump.geom, neighbours.geom) THEN ST_Intersects(gaps_dump.geom, neighbours.geom)
-            ELSE ST_Distance(gaps_dump.geom, neighbours.geom) < 0.001
-       END
-WHERE gaps_dump.gid = 72 OR gaps_dump.gid =2973 OR gaps_dump.gid = 4888 
-ORDER BY gaps_dump.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, LC.geom), 2)) DESC
-
-
-
-
-
-WITH a AS (    
-    
-    SELECT DISTINCT ON (gaps.gid) '0' AS orig_id, LC."ID_l1", LC."ID_l2", LC."ID_l3", gaps.geom
-	FROM "zofie_cimburova"."temp_gap_norway" AS gaps
-		LEFT JOIN "zofie_cimburova"."clip_norway" AS LC
-  	   	ON ST_Intersects(ST_Buffer(gaps.geom,0.001), LC.geom)
-	ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, LC.geom), 2)) DESC
-
-) 
-SELECT COUNT(*) FROM a
-
-
-
-
-
-INSERT INTO "zofie_cimburova"."clip_norway"
-    WITH gaps_dump AS(
-	SELECT gid, (ST_DUMP(geom)).geom::geometry(Polygon,25833) AS geom 
-   	FROM "zofie_cimburova"."gap_norway"
-    WHERE ST_GeometryType(geom) = 'ST_Polygon' OR 
-          ST_GeometryType(geom) = 'ST_MultiPolygon')
-        
-	SELECT DISTINCT ON (gaps.gid) '0' AS orig_id, LC."ID_l1", LC."ID_l2", LC."ID_l3", gaps.geom
-	FROM gaps_dump AS gaps
-		LEFT JOIN "zofie_cimburova"."clip_norway" AS LC
-  	   	ON ST_Intersects(ST_Buffer(gaps.geom,0.001), LC.geom)
-	ORDER BY gaps.gid, ST_Length(ST_CollectionExtract(ST_Intersection(gaps.geom, LC.geom), 2)) DESC
+-- part of larger of concerned polygons kept, part of smaller polygon deleted
+WITH update_table AS (
+	SELECT gid_1 AS overlap_gid1,
+		CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN ST_Difference(poly_b.geom, poly_a.geom)
+   	 		 ELSE ST_Difference(poly_a.geom, poly_b.geom)
+   		END AS updated_poly_geom,
+   	 	CASE WHEN ST_Area(poly_a.geom) > ST_Area(poly_b.geom) 
+		 	 THEN poly_b.gid 
+   		 	 ELSE poly_a.gid
+    	END AS updated_poly_gid
+	FROM "zofie_cimburova"."clip_finland_terr2" AS poly_a,
+		 "zofie_cimburova"."clip_finland_terr2" AS poly_b,
+     	 "zofie_cimburova"."overlaps_finland_terr2" AS overlap
+	WHERE poly_a.gid = overlap.gid_1 AND
+	  	  poly_b.gid = overlap.gid_2)
+UPDATE "zofie_cimburova"."clip_finland_terr2"
+	SET geom = update_table.updated_poly_geom
+    FROM update_table
+	WHERE gid = update_table.updated_poly_gid;	
+	
+-- Finland forest
+CREATE TABLE "zofie_cimburova"."overlaps_finland_forest" AS
+	SELECT aa.gid AS gid_1, bb.gid AS gid_2, ST_Area(ST_Intersection(aa.geom, bb.geom))
+	FROM "zofie_cimburova"."clip_finland_forest" AS aa, 
+		 "zofie_cimburova"."clip_finland_forest" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
 
 
 
