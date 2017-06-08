@@ -293,19 +293,17 @@ LEFT JOIN "zofie_cimburova"."valid_finland_terr1" AS LC
 GROUP BY tile.lehtitunnu, tile.geom);
 
 -- exclude polygons with zero area
-CREATE TABLE "zofie_cimburova"."finland_diff_terr1_repaired" AS (
-SELECT *
-	FROM "zofie_cimburova"."finland_diff_terr1"
-	WHERE ST_Area(geom) > 0)
+DELETE FROM "zofie_cimburova"."finland_diff_terr1" WHERE ST_Area(geom) = 0
+
 	
 -- subtract buildings - more than 24 hours
-CREATE TABLE "zofie_cimburova"."valid_finland" AS (    
+CREATE TABLE "zofie_cimburova"."valid_finland_forest" AS (    
 SELECT  tile.lehtitunnu,     
         COALESCE(
             ST_Difference(tile.geom, ST_Union(LC.geom)), 
             tile.geom
         ) AS geom 
-FROM "zofie_cimburova"."finland_diff_terr1_repaired" AS tile 
+FROM "zofie_cimburova"."finland_diff_terr1" AS tile 
 LEFT JOIN "zofie_cimburova"."valid_finland_buildings" AS LC 
 	ON tile.geom && LC.geom
 GROUP BY tile.lehtitunnu, tile.geom);
@@ -527,10 +525,7 @@ WHERE tile.lehtitunnu IN ('M3443L', 'X5213L', 'X5213R')
 GROUP BY tile.lehtitunnu, tile.geom);
 
 -- exclude polygons with zero area
-CREATE TABLE "zofie_cimburova"."missing_finland_diff_terr1_repaired" AS (
-SELECT *
-	FROM "zofie_cimburova"."missing_finland_diff_terr1"
-	WHERE ST_Area(geom) > 0)
+DELETE FROM "zofie_cimburova"."missing_finland_diff_terr1" WHERE ST_Area(geom) = 0
 	
 -- subtract buildings - 48 sec
 CREATE TABLE "zofie_cimburova"."missing_valid_finland" AS (    
@@ -539,17 +534,17 @@ SELECT  tile.lehtitunnu,
             ST_Difference(tile.geom, ST_Union(LC.geom)), 
             tile.geom
         ) AS geom 
-FROM "zofie_cimburova"."missing_finland_diff_terr1_repaired" AS tile 
+FROM "zofie_cimburova"."missing_finland_diff_terr1" AS tile 
 LEFT JOIN "zofie_cimburova"."valid_finland_buildings" AS LC 
 	ON tile.geom && LC.geom
 WHERE tile.lehtitunnu IN ('M3443L', 'X5213L', 'X5213R')
 GROUP BY tile.lehtitunnu, tile.geom);
 
 -- add missing tiles to forest dataset
-DELETE FROM "zofie_cimburova"."valid_finland" AS forest
+DELETE FROM "zofie_cimburova"."valid_finland_forest" AS forest
     WHERE forest.lehtitunnu IN ('M3443L', 'X5213L', 'X5213R');
 	
-INSERT INTO "zofie_cimburova"."valid_finland"
+INSERT INTO "zofie_cimburova"."valid_finland_forest"
 	SELECT lehtitunnu, geom
     FROM "zofie_cimburova"."missing_valid_finland";
 	
@@ -715,7 +710,7 @@ ALTER TABLE "zofie_cimburova"."clip_finland_dense"
 -- clip Finland forest
 CREATE TABLE "zofie_cimburova"."clip_finland_forest" AS (    
 	SELECT LC.gid AS orig_gid, "ID_l1", "ID_l2", "ID_l3", ST_Intersection(LC.geom, finland.geom) AS geom
-	FROM "zofie_cimburova"."valid_finland" AS LC, 
+	FROM "zofie_cimburova"."valid_finland_forest" AS LC, 
     	(SELECT * 
    		 FROM "AdministrativeUnits"."Fenoscandia_Country_polygon" 
     	 WHERE "countryCode" = 'FI') AS finland
@@ -724,7 +719,7 @@ CREATE TABLE "zofie_cimburova"."clip_finland_forest" AS (
     
 INSERT INTO "zofie_cimburova"."clip_finland_forest"
 	SELECT LC.gid, "ID_l1", "ID_l2", "ID_l3", LC.geom
-    FROM "zofie_cimburova"."valid_finland" AS LC,
+    FROM "zofie_cimburova"."valid_finland_forest" AS LC,
     	(SELECT * 
    		 FROM "AdministrativeUnits"."Fenoscandia_Country_polygon" 
     	 WHERE "countryCode" = 'FI') AS finland
@@ -977,29 +972,7 @@ INSERT INTO "zofie_cimburova"."clip_norway"
 -- Finland should not contain any gaps due to the origin of the data,
 -- i.e. subtracting from the country area
 
-------------------------------------------------------------
--- 11. Merge all finnish data
-------------------------------------------------------------	
--- add columns to forest data
-ALTER TABLE "zofie_cimburova"."valid_finland" 
-	ADD COLUMN gid SERIAL PRIMARY KEY,
-	ADD COLUMN "ID_l1" smallint,
-	ADD COLUMN "ID_l2" smallint,
-	ADD COLUMN "ID_l3" smallint;
-	
--- fill columns
-UPDATE "zofie_cimburova"."clip_finland_forest"
-SET "ID_l1" = 7,
-  	"ID_l2" = 700,
-    "ID_l3" = 7000;
-	
-UPDATE "zofie_cimburova"."valid_finland_forest"
-SET "ID_l1" = 7,
-  	"ID_l2" = 700,
-    "ID_l3" = 7000;
 
-
--- union Buildings, Densely built areas, Terrain 1, Terrain 2 and Forest
 
 
 
@@ -1200,5 +1173,68 @@ CREATE TABLE "zofie_cimburova"."overlaps_finland_forest" AS
 
 
 	
--- TODO merge finnish datasets
+------------------------------------------------------------
+-- 11. Merge all finnish data
+------------------------------------------------------------	
+-- add columns to forest data
+ALTER TABLE "zofie_cimburova"."valid_finland_forest" 
+	ADD COLUMN gid SERIAL PRIMARY KEY,
+	ADD COLUMN "ID_l1" smallint,
+	ADD COLUMN "ID_l2" smallint,
+	ADD COLUMN "ID_l3" smallint;
+	
+-- fill columns
+UPDATE "zofie_cimburova"."clip_finland_forest"
+SET "ID_l1" = 7,
+  	"ID_l2" = 700,
+    "ID_l3" = 7000;
+	
+UPDATE "zofie_cimburova"."valid_finland_forest"
+SET "ID_l1" = 7,
+  	"ID_l2" = 700,
+    "ID_l3" = 7000;
+	
+-- union Buildings, Densely built areas, Terrain 1, Terrain 2 and Forest
+CREATE TABLE "zofie_cimburova"."clip_finland" AS
+	SELECT gid AS orig_gid, geom, "ID_l1", "ID_l2", "ID_l3"
+    FROM "zofie_cimburova"."clip_finland_buildings";
+
+ALTER TABLE "zofie_cimburova"."clip_finland"
+	ADD COLUMN "from_table" char(2);
+    
+UPDATE "zofie_cimburova"."clip_finland"
+	SET "from_table" = 'BU';
+    
+INSERT INTO "zofie_cimburova"."clip_finland"
+	SELECT gid AS orig_gid, geom, "ID_l1", "ID_l2", "ID_l3", 'DE'
+    FROM "zofie_cimburova"."clip_finland_dense";
+    
+INSERT INTO "zofie_cimburova"."clip_finland"
+	SELECT gid AS orig_gid, geom, "ID_l1", "ID_l2", "ID_l3", 'FO'
+    FROM "zofie_cimburova"."clip_finland_forest";
+
+INSERT INTO "zofie_cimburova"."clip_finland"
+	SELECT gid AS orig_gid, geom, "ID_l1", "ID_l2", "ID_l3", 'T1'
+    FROM "zofie_cimburova"."clip_finland_terr1";
+    
+INSERT INTO "zofie_cimburova"."clip_finland"
+	SELECT gid AS orig_gid, geom, "ID_l1", "ID_l2", "ID_l3", 'T2'
+    FROM "zofie_cimburova"."clip_finland_terr2";
+
+ALTER TABLE "zofie_cimburova"."clip_finland" 
+	ADD COLUMN gid SERIAL PRIMARY KEY;
+	
+-- find overlaps in finland 
+CREATE TABLE "zofie_cimburova"."overlaps_finland" AS
+	SELECT 	aa.gid AS gid_1, 
+    		bb.gid AS gid_2, 
+            ST_Area(ST_Intersection(aa.geom, bb.geom)) AS area,
+            ST_Intersection(aa.geom, bb.geom) AS geom,
+            aa."ID_l1" AS id_l1_1,
+            bb."ID_l1" AS id_l1_2            
+	FROM "zofie_cimburova"."clip_finland" AS aa, 
+		 "zofie_cimburova"."clip_finland" AS bb
+	WHERE aa.gid > bb.gid AND
+		  ST_Overlaps(aa.geom, bb.geom)
+
 
