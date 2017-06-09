@@ -35,6 +35,28 @@ END
 $$
 LANGUAGE 'plpgsql' STABLE STRICT;
 
+-- create regular grid
+-- https://gis.stackexchange.com/questions/16374/how-to-create-a-regular-polygon-grid-in-postgis
+-- nrow 	number of rows
+-- ncol 	number of columns
+-- xsize 	lengths of the cell size
+-- ysize 	lengths of the cell size
+-- x0, y0 	coordinates for the bottom-left corner
+CREATE OR REPLACE FUNCTION "zofie_cimburova".ST_CreateFishnet(
+        nrow integer, ncol integer,
+        xsize float8, ysize float8,
+        x0 float8 DEFAULT 0, y0 float8 DEFAULT 0,
+        OUT "row" integer, OUT col integer,
+        OUT geom geometry)
+    RETURNS SETOF record AS
+$$
+SELECT i + 1 AS row, j + 1 AS col, ST_Translate(cell, j * $3 + $5, i * $4 + $6) AS geom
+FROM generate_series(0, $1 - 1) AS i,
+     generate_series(0, $2 - 1) AS j,
+(
+SELECT ('POLYGON((0 0, 0 '||$4||', '||$3||' '||$4||', '||$3||' 0,0 0))')::geometry AS cell
+) AS foo;
+$$ LANGUAGE sql IMMUTABLE STRICT;
 
 
 ------------------------------------------------------------
@@ -1225,16 +1247,47 @@ ALTER TABLE "zofie_cimburova"."clip_finland"
 	ADD COLUMN gid SERIAL PRIMARY KEY;
 	
 -- find overlaps in finland 
-CREATE TABLE "zofie_cimburova"."overlaps_finland" AS
-	SELECT 	aa.gid AS gid_1, 
-    		bb.gid AS gid_2, 
-            ST_Area(ST_Intersection(aa.geom, bb.geom)) AS area,
-            ST_Intersection(aa.geom, bb.geom) AS geom,
-            aa."ID_l1" AS id_l1_1,
-            bb."ID_l1" AS id_l1_2            
-	FROM "zofie_cimburova"."clip_finland" AS aa, 
-		 "zofie_cimburova"."clip_finland" AS bb
-	WHERE aa.gid > bb.gid AND
-		  ST_Overlaps(aa.geom, bb.geom)
+-- 1. distinguish bog from the rest
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1301, "ID_l3" = 13010
+WHERE "ID_l1" = 7 AND "ID_l2" = 701 AND "ID_l3" = 7010;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1301, "ID_l3" = 13011
+WHERE "ID_l1" = 7 AND "ID_l2" = 701 AND "ID_l3" = 7011;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1301, "ID_l3" = 13012
+WHERE "ID_l1" = 7 AND "ID_l2" = 701 AND "ID_l3" = 7012;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1302, "ID_l3" = 13020
+WHERE "ID_l1" = 8 AND "ID_l2" = 802 AND "ID_l3" = 8020;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1302, "ID_l3" = 13021
+WHERE "ID_l1" = 8 AND "ID_l2" = 802 AND "ID_l3" = 8021;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1302, "ID_l3" = 13022
+WHERE "ID_l1" = 8 AND "ID_l2" = 802 AND "ID_l3" = 8022;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1302, "ID_l3" = 13023
+WHERE "ID_l1" = 8 AND "ID_l2" = 802 AND "ID_l3" = 8023;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1303, "ID_l3" = 13030
+WHERE "ID_l1" = 8 AND "ID_l2" = 803 AND "ID_l3" = 8030;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1304, "ID_l3" = 13040
+WHERE "ID_l1" = 8 AND "ID_l2" = 804 AND "ID_l3" = 8040;
+
+UPDATE "zofie_cimburova"."clip_finland"
+SET "ID_l1" = 13, "ID_l2" = 1305, "ID_l3" = 13050
+WHERE "ID_l1" = 8 AND "ID_l2" = 805 AND "ID_l3" = 8050;
+
+
 
 
