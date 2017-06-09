@@ -2,7 +2,7 @@ setwd("\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA")
 
 
 # ------------------------------------ #
-# ---------- 1. import data ---------- #
+# ---------- 0. import data ---------- #
 # ------------------------------------ #
 
 ### observation points
@@ -37,11 +37,6 @@ r.explanatory$TPI1010 <- r.tpi1010$TPI1010
 
 projection(r.explanatory) <- "+proj=utm +zone=33"
 
-
-### set extent for predicted data
-extent <- expand.grid(x = seq(forest_line@bbox[1,1], forest_line@bbox[1,2], 50), 
-                     y = seq(forest_line@bbox[2,1], forest_line@bbox[2,2], 50))
-coordinates(extent) <- ~ x + y 
 
 # --------------------------------------------- #
 # ---------- 1. preliminary analysis ---------- #
@@ -87,23 +82,23 @@ spplot(SpatialPointsDataFrame(pts, fl_predict), "residuals", at=brks, col.region
 # ------------------------------------------------ #
 # ---------- 1. try regression krigging ---------- #
 # ------------------------------------------------ #
+library(gstat)
 
 # convert input to SpatialPointsDataFrame
-pts <- cbind(fl_predict$X, fl_predict$Y)
-fl_predict.spdf <- SpatialPointsDataFrame(pts, fl_predict)
+coordinates(fl_predict) <- ~ X + Y
+projection(fl_predict) <- "+proj=utm +zone=33"
 
 #Estimate the residuals and their autocorrelation structure (variogram):
-library(gstat)
-null.vgm <- vgm(2000, "Exp", 1000, nugget=0) # initial parameters
-vgm_height_r <- fit.variogram(variogram(height~BIO11+TPI1010, fl_predict.spdf), model=null.vgm)
+psill <- 2000
+range <- 2000
+vgm.theor <- vgm(psill, "Exp", range, nugget=0)
+vgm.empir <- variogram(height~BIO11+TPI1010, fl_predict)
+vgm.fit <- fit.variogram(vgm.empir, model=vgm.theor)
 
-plot(variogram(height~BIO11+TPI1010, fl_predict.spdf), vgm_height_r, main="fitted by gstat")
+plot(vgm.empir, vgm.fit, main="fitted by gstat")
 
 # run krigging
-#coordinates(fl_predict.spdf) <- ~ X + Y
-projection(fl_predict.spdf) <- "+proj=utm +zone=33"
-
-height_model2 <- krige(height~BIO11+TPI1010, locations=fl_predict.spdf, newdata=r.explanatory, model=vgm_height_r)
+height_model2 <- krige(height~BIO11+TPI1010, locations=fl_predict, newdata=r.explanatory, model=vgm.fit)
 
 # export
 r.height_model2 <- rasterFromXYZ(as.data.frame(height_model2)[c(3,4,1,2)])
@@ -111,57 +106,9 @@ projection(r.height_model2) <- "+proj=utm +zone=33"
 writeRaster(r.height_model2, filename="temp_height_model2.tif", format="GTiff", overwrite=TRUE)
 
 
-# -------------------------------------------------------- #
-# ---------- 2. try krigging forest line height ---------- #
-# -------------------------------------------------------- #
-library(sp)
-library(gstat)
-library(ggplot2)
-
-# 1. Visualize
-ggplot(forest_line, aes(x=X, y=Y)) + 
-        geom_point(aes(size=height), color="blue", alpha=1/4) +   
-        ggtitle("Forest line height (m)") + coord_equal() + theme_bw()
-
-# 2. Convert the dataframe to a spatial points dataframe (SPDF).
-coordinates(forest_line) <- ~ X + Y
-class(forest_line)
-
-# 3. Fit a variogram model to the data.
-# calculates sample variogram values 
-fl.vgm <- variogram(log(height)~1, forest_line) 
-fl.fit <- fit.variogram(fl.vgm, model=vgm(0.02, "Exp", 900, 1)) # fit model
-
-plot(fl.vgm, fl.fit) # plot the sample values, along with the fit model
-
-
-# 4. Krige the data according to the variogram.
-
-
-# krigging
-fl.kriged <- krige(log(height) ~ 1, forest_line, extent, model=fl.fit)
-
-# plot results
-fl.kriged <- as.data.frame(fl.kriged)
-ggplot(fl.kriged, aes(x=x, y=y)) + geom_tile(aes(fill=var1.pred)) + coord_equal() +
-  scale_fill_gradient(low = "yellow", high="red") +
-  theme_bw()
-
-# export results
-library(raster)
-fl.kriged_m = fl.kriged
-fl.kriged_m$var1.pred = exp(fl.kriged_m$var1.pred)
-  
-fl.kriged.raster <- rasterFromXYZ(fl.kriged_m)  #Convert first two columns as lon-lat and third as value                
-projection(fl.kriged.raster) <- "+proj=utm +zone=33"
-
-
-writeRaster(fl.kriged.raster, filename="temp_fl_kriged.tif", format="GTiff", overwrite=TRUE)
-plot(fl.kriged.raster)
-
 
 # ------------------------------------------------------- #
-# ---------- 3. try SAR for forest line height ---------- #
+# ---------- 2. try SAR for forest line height ---------- #
 # ------------------------------------------------------- #
 library(spdep)
 
@@ -183,18 +130,8 @@ fl.SAR.e <- errorsarlm(formula=height~BIO11+BIO10+BIO01+BIO18+BIO19+BIO12+srad+l
 
 
 
-
-
-
-
-
-
-
-
-
-
 # ------------------------------------------------------- #
-# ---------- 4. try GWR for forest line height ---------- #
+# ---------- 3. try GWR for forest line height ---------- #
 # ------------------------------------------------------- #
 # gwr
 library(maptools)
