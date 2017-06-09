@@ -46,7 +46,6 @@ Code N1;Description;Code N2;Description;Code N3;Description
 7;Forest;702;Coniferous and mixed forest;7020;Coniferous and mixed forest
 7;Forest;703;Mountain birch forest;7030;Mountain birch forest
 7;Forest;704;Deciduous forest;7040;Deciduous forest
-7;Forest;705;Brush;7050;Brush
 8;Natural open area;800;Natural open area, unknown;8000;Natural open area, unknown
 8;Natural open area;801;Rocky area;8010;Rocky area
 8;Natural open area;802;Open bog;8020;Open bog, unknown
@@ -56,6 +55,7 @@ Code N1;Description;Code N2;Description;Code N3;Description
 8;Natural open area;803;Sand;8030;Sand
 8;Natural open area;804;Open reliction;8040;Open reliction
 8;Natural open area;805;Boulders in water;8050;Boulders in water
+8;Natural open area;806;Brush;8060;Brush
 9;Cultivated open area;900;Cultivated open area, unknown;9000;Cultivated open area, unknown
 9;Cultivated open area;901;Park;9010;Park
 9;Cultivated open area;902;Garden;9020;Garden
