@@ -1289,6 +1289,7 @@ SET "ID_l1" = 13, "ID_l2" = 1305, "ID_l3" = 13050
 WHERE "ID_l1" = 8 AND "ID_l2" = 805 AND "ID_l3" = 8050;
 
 -- create 200km grid
+-- not used
 CREATE TABLE "zofie_cimburova"."finland_grid_200" AS
 SELECT * FROM "zofie_cimburova".st_createfishnet(28,16,50000.0,50000.0,700000.0,6600000.0);
 
@@ -1298,6 +1299,7 @@ VACUUM ANALYZE "zofie_cimburova"."finland_grid_200";
 SELECT UpdateGeometrySRID('zofie_cimburova', 'finland_grid_200', 'geom', 25833) ;
 
 -- intersect clip_finland with 200km grid
+-- not used
 CREATE TABLE "zofie_cimburova".temp_intersection AS
 	SELECT fi.orig_gid, fi."ID_l1", fi."ID_l2", fi."ID_l3", fi.from_table, fi.gid, grid.row, grid.col, ST_Intersection(fi.geom, grid.geom) AS geom
 	FROM "zofie_cimburova"."clip_finland" AS fi,
@@ -1307,22 +1309,30 @@ CREATE TABLE "zofie_cimburova".temp_intersection AS
 CREATE INDEX temp_intersections_gix ON "zofie_cimburova"."temp_intersection" USING GIST (geom);
 CREATE INDEX row_idx ON zofie_cimburova."temp_intersection" (row);
 CREATE INDEX col_idx ON zofie_cimburova."temp_intersection" (col);
+CREATE INDEX id_idx ON "zofie_cimburova"."temp_intersection" (gid);
+
 VACUUM ANALYZE "zofie_cimburova"."temp_intersection";	
 
--- search for overlaps within smaller tiles
--- 11
-CREATE TABLE "zofie_cimburova"."overlaps_finland" AS
-	SELECT aa.gid AS gid_1,
+-- search for overlaps
+CREATE TABLE "zofie_cimburova"."overlaps_finland_7_8" AS
+    SELECT aa.gid AS gid_1,
     	   bb.gid AS gid_2,
            ST_Intersection(aa.geom, bb.geom) AS geom,
            aa."ID_l1" AS id_l1_1,
-           bb."ID_l1" AS id_l1_2
-    FROM "zofie_cimburova"."temp_intersection" AS aa,
-    	 "zofie_cimburova"."temp_intersection" AS bb
-    WHERE aa.row = 1 AND aa.col = 1 AND -- select tile
-    	  bb.row = 1 AND bb.col = 1 AND -- both polygons from the same tile
-          aa.gid > bb.gid AND -- dont test pairs twice
-          aa."ID_l1" != bb."ID_l1" AND -- dont test those with same ID_l1
-          ST_Overlaps(aa.geom, bb.geom) AND -- only test overlaping polygons
-          ST_Area(ST_Intersection(aa.geom, bb.geom)) > 100; -- only save areas larger than 100 m2
+           bb."ID_l1" AS id_l1_2,
+           ST_Area(ST_Intersection(aa.geom, bb.geom)) AS area
+    FROM (SELECT * 
+          FROM "zofie_cimburova"."clip_finland_terr2" 
+          WHERE "ID_l1" = 7
+          ) AS aa
+    JOIN (SELECT * 
+          FROM "zofie_cimburova"."clip_finland_terr1" 
+          WHERE "ID_l1" = 8
+          ) AS bb
+    ON  ST_Intersects(aa.geom, bb.geom) AND -- only test overlaping polygons
+        ST_Area(ST_Intersection(aa.geom, bb.geom)) > 100; -- only save areas larger than 100 m2
+
+UPDATE "zofie_cimburova"."overlaps_finland_7_8"
+SET geom = ST_CollectionExtract(geom, 3)
+WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';	
           
