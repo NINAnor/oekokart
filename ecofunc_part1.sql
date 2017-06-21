@@ -1335,4 +1335,25 @@ CREATE TABLE "zofie_cimburova"."overlaps_finland_7_8" AS
 UPDATE "zofie_cimburova"."overlaps_finland_7_8"
 SET geom = ST_CollectionExtract(geom, 3)
 WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';	
+
+-- notice in finnish dataset that polygons participate in overlap
+-- those will not be taken into account when deriving forest line
+ALTER TABLE zofie_cimburova.clip_finland
+    ADD COLUMN overlap boolean;
+	
+UPDATE zofie_cimburova.clip_finland
+	SET overlap = false;
+
+UPDATE zofie_cimburova.clip_finland AS LC
+	SET overlap = true
+	FROM  zofie_cimburova.overlaps_finland_7_8 AS overlap
+	WHERE LC.from_table = 'T2' AND
+		  LC.orig_gid = overlap.gid_1;	
+
+UPDATE zofie_cimburova.clip_finland AS LC
+	SET overlap = true
+	FROM  zofie_cimburova.overlaps_finland_7_8 AS overlap
+	WHERE LC.from_table = 'T1' AND
+		  LC.orig_gid = overlap.gid_2
+
           
