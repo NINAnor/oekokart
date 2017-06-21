@@ -40,21 +40,11 @@ Code N1;Description;Code N2;Description;Code N3;Description
 6;Industrial area;603;Waste tip;6030;Waste tip
 6;Industrial area;604;Organic material extraction area;6040;Organic material extraction area
 7;Forest;700;Forest, unknown;7000;Forest, unknown
-7;Forest;701;Forested bog;7010;Forested bog, unknown
-7;Forest;701;Forested bog;7011;Forested bog, easy to traverse
-7;Forest;701;Forested bog;7012;Forested fen, difficult to traverse
 7;Forest;702;Coniferous and mixed forest;7020;Coniferous and mixed forest
 7;Forest;703;Mountain birch forest;7030;Mountain birch forest
 7;Forest;704;Deciduous forest;7040;Deciduous forest
 8;Natural open area;800;Natural open area, unknown;8000;Natural open area, unknown
 8;Natural open area;801;Rocky area;8010;Rocky area
-8;Natural open area;802;Open bog;8020;Open bog, unknown
-8;Natural open area;802;Open bog;8021;Open bog, easy to traverse
-8;Natural open area;802;Open bog;8022;Open fen, difficult to traverse
-8;Natural open area;802;Open bog;8023;Paludified land
-8;Natural open area;803;Sand;8030;Sand
-8;Natural open area;804;Open reliction;8040;Open reliction
-8;Natural open area;805;Boulders in water;8050;Boulders in water
 8;Natural open area;806;Brush;8060;Brush
 9;Cultivated open area;900;Cultivated open area, unknown;9000;Cultivated open area, unknown
 9;Cultivated open area;901;Park;9010;Park
@@ -71,6 +61,13 @@ Code N1;Description;Code N2;Description;Code N3;Description
 12;Water;1205;Silting water area;12050;Silting water area
 12;Water;1206;Standing water;12060;Standing water
 12;Water;1207;Flooded area;12070;Flooded area
-;;;;;
-;;;;;
-;;;;;
+13;Other natural areas not forming the forest line;1301;Forested bog;13010;Forested bog, unknown
+13;Other natural areas not forming the forest line;1301;Forested bog;13011;Forested bog, easy to traverse
+13;Other natural areas not forming the forest line;1301;Forested bog;13012;Forested fen, difficult to traverse
+13;Other natural areas not forming the forest line;1302;Open bog;13020;Open bog, unknown
+13;Other natural areas not forming the forest line;1302;Open bog;13021;Open bog, easy to traverse
+13;Other natural areas not forming the forest line;1302;Open bog;13022;Open fen, difficult to traverse
+13;Other natural areas not forming the forest line;1302;Open bog;13023;Paludified land
+13;Other natural areas not forming the forest line;1303;Sand;13030;Sand
+13;Other natural areas not forming the forest line;1304;Open reliction;13040;Open reliction
+13;Other natural areas not forming the forest line;1305;Boulders in water;13050;Boulders in water
