@@ -71,3 +71,7 @@ Code N1;Description;Code N2;Description;Code N3;Description
 13;Other natural areas not forming the forest line;1303;Sand;13030;Sand
 13;Other natural areas not forming the forest line;1304;Open reliction;13040;Open reliction
 13;Other natural areas not forming the forest line;1305;Boulders in water;13050;Boulders in water
+14;Areas causing problems for forest line;1401;Rocky area in Finland (801);14010;LC = 8010
+14;Areas causing problems for forest line;1402;Open area in Sweden (800);14020;LC = 8000
+14;Areas causing problems for forest line;1403;Questionable overlapping areas in Finland (700);14031;LC = 7000
+14;Areas causing problems for forest line;1403;Questionable overlapping areas in Finland (801);14032;LC = 8010
