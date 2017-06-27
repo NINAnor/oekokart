@@ -1336,7 +1336,7 @@ UPDATE "zofie_cimburova"."overlaps_finland_7_8"
 SET geom = ST_CollectionExtract(geom, 3)
 WHERE ST_GeometryType(geom) = 'ST_GeometryCollection';	
 
--- notice in finnish dataset that polygons participate in overlap
+-- notice if finnish dataset that polygons participate in overlap
 -- those will not be taken into account when deriving forest line
 ALTER TABLE zofie_cimburova.clip_finland
     ADD COLUMN overlap boolean;
@@ -1355,5 +1355,37 @@ UPDATE zofie_cimburova.clip_finland AS LC
 	FROM  zofie_cimburova.overlaps_finland_7_8 AS overlap
 	WHERE LC.from_table = 'T1' AND
 		  LC.orig_gid = overlap.gid_2
+		  
+-- update values of LC for purposes of forest line
+UPDATE zofie_cimburova.clip_sweden
+SET "ID_l1" = 14, "ID_l2" = 1402, "ID_l3" = 14020
+WHERE "ID_l1" = 8 AND "ID_l2" = 800 AND "ID_l3" = 8000;
 
+UPDATE zofie_cimburova.clip_finland
+SET "ID_l1" = 14, "ID_l2" = 1401, "ID_l3" = 14010
+WHERE "ID_l1" = 8 AND "ID_l2" = 801 AND "ID_l3" = 8010;
+
+-- merge all three datasets to create fenoscandian land cover map
+CREATE TABLE zofie_cimburova.landcover_nosefi AS
+	SELECT gid AS orig_gid, "ID_l1", "ID_l2", "ID_l3", geom
+    FROM zofie_cimburova.clip_norway;
+
+INSERT INTO zofie_cimburova.landcover_nosefi
+	SELECT gid AS orig_gid, "ID_l1", "ID_l2", "ID_l3", geom
+    FROM zofie_cimburova.clip_sweden;
+
+INSERT INTO zofie_cimburova.landcover_nosefi
+	SELECT gid AS orig_gid, "ID_l1", "ID_l2", "ID_l3", geom
+    FROM zofie_cimburova.clip_finland;
+    
+ALTER TABLE zofie_cimburova.landcover_nosefi
+	ADD COLUMN gid SERIAL PRIMARY KEY;
+	
+-- Create final table in schema Topography
+CREATE TABLE "Topography"."Fenoscandia_LandCover_polygon" AS
+	SELECT * FROM zofie_cimburova.landcover_nosefi
+   
+CREATE INDEX fenoscandia_landcover_polygon_gix ON "Topography"."Fenoscandia_LandCover_polygon" USING GIST (geom);
+
+VACUUM ANALYZE "Topography"."Fenoscandia_LandCover_polygon";	
           
