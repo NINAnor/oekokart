@@ -8,21 +8,23 @@ from gdalconst import *
 
 def main():
     
-    # region
-    grass.run_command('g.region', raster='dem_10m_nosefi_float@g_Elevtion_Fenoscandia')
-
+    # computational region for test cases
+    #grass.run_command('g.region', n=7055175, s=7038355, e=207745, w=192175, res=10)
 
     # Rasterization in gdal
 
     # Link to GRASS
-    input_raster = 'ECOFUNC/CODES/sea.tif'
+    input_raster = 'ECOFUNC/DATA/SEA/sea.tif'
     r_sea_binary = 'sea_binary_10m'
-    grass.run_command('r.external', overwrite=True, input='/data/home/zofie.cimburova/'+input_raster, output=r_sea_binary)
+    #grass.run_command('r.external', overwrite=True, input='/data/home/zofie.cimburova/'+input_raster, output=r_sea_binary)
     
+    # region
+    #grass.run_command('g.region', raster=r_sea_binary)
+
     # reclass to 1-null()
     r_sea = 'sea_10m'
-    grass.run_command('r.mapcalc', overwrite=True, expression=r_sea+'=\
-                     if('+r_sea_binary+'==1,1,null())')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_sea+'=\
+    #                 if('+r_sea_binary+'==1,1,null())')
 
     #--------------------------------------------------------#
     #---------------- DISTANCE FROM OPEN SEA ----------------#
@@ -30,14 +32,26 @@ def main():
     
     # 1. measure distance from inland pixels to sea coast
     r_sea_distance = 'sea_distance_10m'
-    grass.run_command('r.grow.distance', overwrite=True, input=r_sea, distance=r_sea_distance)
+    #grass.run_command('r.grow.distance', overwrite=True, input=r_sea, distance=r_sea_distance)
 
-    # 2. extract open sea (further than 10 km from coast)
+    # 2. extract open sea (further than x km from coast)
+    limit = 5000
+
+    # adjust computational region
+    rast_param = grass.parse_command('r.info', flags = 'g', map=r_sea)
+    north = int(rast_param.north)
+    south = int(rast_param.south)
+    east = int(rast_param.east)
+    west = int(rast_param.west)
+
+    grass.run_command('g.region', n=str(north), 
+                      s=str(south), 
+                      e=str(east), 
+                      w=str(west), res=10)
+
     r_sea_open = 'sea_open_10m'
-    limit = 10000
-    grass.run_command('r.grow.distance', overwrite=True, input=r_sea, distance=r_sea_open, flags = 'n')
-    grass.run_command('r.mapcalc', overwrite = True, expression=r_sea_open+'= \
-                      if('+r_sea_open+'>='+str(limit)+',1,null())')
+
+    grass.run_command('r.grow', flags='m', overwrite=True, input=r_sea, output=r_sea_open, radius=-limit, old=1, new=1)
 
     # 4. measure distance from inland pixels to open sea
     r_sea_open_distance = 'sea_open_distance_10m'
