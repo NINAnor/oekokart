@@ -2,61 +2,59 @@
 
 import grass.script as grass
 
-    # TEMPERATURE
+    # TEMPERATURE AND PRECIPITATION
 
 def main():
 
-    # resample 250 m raster
+    # TEMPERATURE: GWR
+    r_height = 'dem_10m_nosefi_float@g_Elevation_Fenoscandia'
 
     r_temperature_bio01 = 'eurolst_clim.bio01@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
     r_temperature_bio02 = 'eurolst_clim.bio02@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
-    r_temperature_bio03 = 'eurolst_clim.bio03@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
-    r_temperature_bio05 = 'eurolst_clim.bio05@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
-    r_temperature_bio06 = 'eurolst_clim.bio06@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
-    r_temperature_bio07 = 'eurolst_clim.bio07@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
     r_temperature_bio10 = 'eurolst_clim.bio10@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
     r_temperature_bio11 = 'eurolst_clim.bio11@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
 
-    # change resolution of region to 250m
-    #grass.run_command('g.region', raster=r_temperature_bio01, flags='p')
-    #grass.run_command('g.region', res=250, flags='p')
+    r_bio01_estimates = 'bio01_eurolst_10m'
+    r_bio02_estimates = 'bio02_eurolst_10m'
+    r_bio10_estimates = 'bio10_eurolst_10m'
+    r_bio11_estimates = 'bio11_eurolst_10m'
 
-    # resample height to obtain average height in each 250m pixel
-    r_height_250 = 'dem_250m_nosefi@g_Elevation_Fenoscandia'
-    #grass.run_command('r.resamp.stats', input=r_height, output=r_height_250, flags='w', overwrite=True)
+    #grass.run_command('r.gwr', overwrite=True, mapx=r_height, mapy=r_temperature_bio01, 
+    #                  estimates=r_bio01_estimates, kernel='gauss', bandwidth=14,
+    #                  vf=1, npoints=0, memory=300)
+    #grass.run_command('r.gwr', overwrite=True, mapx=r_height, mapy=r_temperature_bio02, 
+    #                  estimates=r_bio02_estimates, kernel='gauss', bandwidth=14,
+    #                  vf=1, npoints=0, memory=300)
+    #grass.run_command('r.gwr', overwrite=True, mapx=r_height, mapy=r_temperature_bio10, 
+    #                  estimates=r_bio10_estimates, kernel='gauss', bandwidth=14,
+    #                  vf=1, npoints=0, memory=300)
+    #grass.run_command('r.gwr', overwrite=True, mapx=r_height, mapy=r_temperature_bio11, 
+    #                  estimates=r_bio11_estimates, kernel='gauss', bandwidth=14,
+    #                  vf=1, npoints=0, memory=300)
 
-    # change resolution of region back to 10m
-    #grass.run_command('g.region', raster=r_height, flags='p')
-    #grass.run_command('g.region', res=10, flags='p')
+    # PRECIPITATION - RESAMPLE
+    r_precip_bio12 = 'WorldClim_current_bio12_1975@g_Meteorology_Fenoscandia_WorldClim_current'
+    r_precip_bio12 = 'WorldClim_current_bio15_1975@g_Meteorology_Fenoscandia_WorldClim_current'
+    r_precip_bio12 = 'WorldClim_current_bio18_1975@g_Meteorology_Fenoscandia_WorldClim_current'
+    r_precip_bio12 = 'WorldClim_current_bio19_1975@g_Meteorology_Fenoscandia_WorldClim_current'
 
-    # create new temperature
-    r_temperature_bio01_10m = 'eurolst_clim.bio01_10m'
-    r_temperature_bio02_10m = 'eurolst_clim.bio02_10m'
-    r_temperature_bio03_10m = 'eurolst_clim.bio03_10m'
-    r_temperature_bio05_10m = 'eurolst_clim.bio05_10m'
-    r_temperature_bio06_10m = 'eurolst_clim.bio06_10m'
-    r_temperature_bio07_10m = 'eurolst_clim.bio07_10m'
-    r_temperature_bio10_10m = 'eurolst_clim.bio10_10m'
-    r_temperature_bio11_10m = 'eurolst_clim.bio11_10m'
-
-    # interpolate
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio01_10m + '=( \
-    #                 '+r_temperature_bio01+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio02_10m + '=( \
-    #                 '+r_temperature_bio02+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio03_10m + '=( \
-    #                 '+r_temperature_bio03+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio05_10m + '=( \
-    #                 '+r_temperature_bio05+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio06_10m + '=( \
-    #                 '+r_temperature_bio06+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio07_10m + '=( \
-    #                 '+r_temperature_bio07+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio10_10m + '=( \
-    #                 '+r_temperature_bio10+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio11_10m + '=( \
-    #                 '+r_temperature_bio11+'-('+r_height+'-'+r_height_250+')*0.6/10)')
-
+    r_precip_bio12_resamp = 'ggeurolst_clim.bio12_10m'
+    r_precip_bio12_resamp = 'ggeurolst_clim.bio15_10m'
+    r_precip_bio12_resamp = 'ggeurolst_clim.bio18_10m'
+    r_precip_bio12_resamp = 'ggeurolst_clim.bio19_10m'
+    
+    grass.run_command('r.resamp.filter', overwrite=True, input=r_precip_bio12,
+                      output=r_precip_bio12_resamp, filter='box,gauss', 
+                      radius='2000,1000')
+    grass.run_command('r.resamp.filter', overwrite=True, input=r_precip_bio15,
+                      output=r_precip_bio15_resamp, filter='box,gauss', 
+                      radius='2000,1000')
+    grass.run_command('r.resamp.filter', overwrite=True, input=r_precip_bio18,
+                      output=r_precip_bio18_resamp, filter='box,gauss', 
+                      radius='2000,1000')
+    grass.run_command('r.resamp.filter', overwrite=True, input=r_precip_bio19,
+                      output=r_precip_bio19_resamp, filter='box,gauss', 
+                      radius='2000,1000')
 
 
 if __name__ == '__main__':
