@@ -2,6 +2,9 @@
 
 import grass.script as grass
 
+# CREATE SAMPLES OF FOREST LINE
+# MEADIN VALUE
+# NOT USED
 
 def main():
     r_height = 'dem_10m_nosefi_float@g_Elevation_Fenoscandia'
@@ -24,17 +27,17 @@ def main():
  
     # sampling: leave only medians of neighbourhood
     r_forest_line_sampled = 'temp_forest_line_sampled'
-    grass.run_command('r.mapcalc', overwrite=True, expression=r_forest_line_sampled+' = \
-                      if(abs('+r_height+'-'+r_forest_line_median+') <= 0.05,'+r_height+', null())')
+    grass.run_command('r.mapcalc', overwrite=True, expression='{}= \
+                      if(abs({}-{})<=0.05,{},null())'.format(\
+                      r_forest_line_sampled,r_height,r_forest_line_median,\
+                      r_height))
 
     # remove mask
     grass.run_command('r.mask', flags='r')
 
     # remove temporary files
-    grass.run_command('g.remove', type='raster', flags='f', name=r_forest_line_median)
-
-
-
+    grass.run_command('g.remove', type='raster', flags='f', 
+                      name=r_forest_line_median)
 
 if __name__ == '__main__':
     main()
