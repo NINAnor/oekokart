@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 
 import grass.script as grass
+import math
+import sys
 
 # WIND EXPOSURE
 
 def main():
 
+    r_height = 'dem_10m_nosefi_float@g_Elevation_Fenoscandia'
+
     # TOPEX
     # http://jamiepopkin.blogspot.no/2011/01/calculating-togographic-exposure-with.html
     # 100 m to 2000 m in 100m intervals
     # TODO: use DEM with 0 instead of null
+    grass.run_command('g.region', raster=r_height)
+
     r_topex_N = 'dem_10m_topex_N'
     r_topex_S = 'dem_10m_topex_S'
     r_topex_E = 'dem_10m_topex_E'
@@ -36,10 +42,18 @@ def main():
     for bin in bins:
         N = bin/10 # index
 
-        expression_N = expression_N + 'if(isnull(${dem}[-'+str(N)+',0]),atan(-${dem}/'+str(bin)+'),atan((${dem}[-'+str(N)+',0]-${dem})/'+str(bin)+'))'
-        expression_S = expression_S + 'if(isnull(${dem}['+str(N)+',0]),atan(-${dem}/'+str(bin)+'),atan((${dem}['+str(N)+',0]-${dem})/'+str(bin)+'))'
-        expression_E = expression_E + 'if(isnull(${dem}[0,'+str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}[0,'+str(N)+']-${dem})/'+str(bin)+'))'
-        expression_W = expression_W + 'if(isnull(${dem}[0,-'+str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}[0,-'+str(N)+']-${dem})/'+str(bin)+'))'
+        expression_N = expression_N + 'if(isnull(${dem}[-'+str(N)+',0]),\
+                       atan(-${dem}/'+str(bin)+'),atan((${dem}[-'+str(N)+',0]\
+                       -${dem})/'+str(bin)+'))'
+        expression_S = expression_S + 'if(isnull(${dem}['+str(N)+',0]),\
+                       atan(-${dem}/'+str(bin)+'),atan((${dem}['+str(N)+',0]\
+                       -${dem})/'+str(bin)+'))'
+        expression_E = expression_E + 'if(isnull(${dem}[0,'+str(N)+']),\
+                       atan(-${dem}/'+str(bin)+'),atan((${dem}[0,'+str(N)+']\
+                       -${dem})/'+str(bin)+'))'
+        expression_W = expression_W + 'if(isnull(${dem}[0,-'+str(N)+']),\
+                       atan(-${dem}/'+str(bin)+'),atan((${dem}[0,-'+str(N)+']\
+                       -${dem})/'+str(bin)+'))'
         
         if bin == bins[-1]:
             expression_N = expression_N + ')'
@@ -52,10 +66,10 @@ def main():
             expression_E = expression_E + ','
             expression_W = expression_W + ','
 
-    #grass.mapcalc(expression_N, overwrite=True, out = r_topex_N, dem=r_height)
-    #grass.mapcalc(expression_S, overwrite=True, out = r_topex_S, dem=r_height)
-    #grass.mapcalc(expression_E, overwrite=True, out = r_topex_E, dem=r_height)
-    #grass.mapcalc(expression_W, overwrite=True, out = r_topex_W, dem=r_height)
+    grass.mapcalc(expression_N, overwrite=True, out = r_topex_N, dem=r_height)
+    grass.mapcalc(expression_S, overwrite=True, out = r_topex_S, dem=r_height)
+    grass.mapcalc(expression_E, overwrite=True, out = r_topex_E, dem=r_height)
+    grass.mapcalc(expression_W, overwrite=True, out = r_topex_W, dem=r_height)
 
     # NE SE SW NW
     expression_NE = '${out} = max('
@@ -66,10 +80,18 @@ def main():
     for bin in bins:
         N = int(round(math.sqrt(2)/2*(bin/10))) # index
 
-        expression_NE = expression_NE + 'if(isnull(${dem}[-'+str(N)+','+str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}[-'+str(N)+','+str(N)+']-${dem})/'+str(bin)+'))'
-        expression_SE = expression_SE + 'if(isnull(${dem}['+str(N)+','+str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}['+str(N)+','+str(N)+']-${dem})/'+str(bin)+'))'
-        expression_SW = expression_SW + 'if(isnull(${dem}['+str(N)+',-'+str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}['+str(N)+',-'+str(N)+']-${dem})/'+str(bin)+'))'
-        expression_NW = expression_NW + 'if(isnull(${dem}[-'+str(N)+',-'+str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}[-'+str(N)+',-'+str(N)+']-${dem})/'+str(bin)+'))'
+        expression_NE = expression_NE + 'if(isnull(${dem}[-'+str(N)+','\
+                       +str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}[-'\
+                       +str(N)+','+str(N)+']-${dem})/'+str(bin)+'))'
+        expression_SE = expression_SE + 'if(isnull(${dem}['+str(N)+','\
+                       +str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}['\
+                       +str(N)+','+str(N)+']-${dem})/'+str(bin)+'))'
+        expression_SW = expression_SW + 'if(isnull(${dem}['+str(N)+',-'\
+                       +str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}['\
+                       +str(N)+',-'+str(N)+']-${dem})/'+str(bin)+'))'
+        expression_NW = expression_NW + 'if(isnull(${dem}[-'+str(N)+',-'\
+                       +str(N)+']),atan(-${dem}/'+str(bin)+'),atan((${dem}[-'\
+                       +str(N)+',-'+str(N)+']-${dem})/'+str(bin)+'))'
         
         if bin == bins[-1]:
             expression_NE = expression_NE + ')'
@@ -82,20 +104,10 @@ def main():
             expression_SW = expression_SW + ','
             expression_NW = expression_NW + ','
         
-    #grass.mapcalc(expression_NE, overwrite=True, out = r_topex_NE, dem=r_height)
-    #grass.mapcalc(expression_SE, overwrite=True, out = r_topex_SE, dem=r_height)
-    #grass.mapcalc(expression_SW, overwrite=True, out = r_topex_SW, dem=r_height)
-    #grass.mapcalc(expression_NW, overwrite=True, out = r_topex_NW, dem=r_height)
-
-    # merge 4 directions together
-    #grass.mapcalc('${out} = ${N} + ${S} + ${E} + ${W} + ${NE} + ${SE} + ${SW} + ${NW}', \
-    #              overwrite=True, out=r_topex, \
-    #              N=r_topex_E, S=r_topex_E, E=r_topex_E, W=r_topex_W,\
-    #              NE=r_topex_NE, SE=r_topex_SE, SW=r_topex_SW, NW=r_topex_NW)
-    #grass.mapcalc('${out} = ${NE} + ${E} + ${SE}', \
-    #              overwrite=True, out='dem_10m_topex_EEE', \
-    #              NE=r_topex_NE, E=r_topex_E, SE=r_topex_SE)
-
+    grass.mapcalc(expression_NE, overwrite=True,out = r_topex_NE,dem=r_height)
+    grass.mapcalc(expression_SE, overwrite=True,out = r_topex_SE,dem=r_height)
+    grass.mapcalc(expression_SW, overwrite=True,out = r_topex_SW,dem=r_height)
+    grass.mapcalc(expression_NW, overwrite=True,out = r_topex_NW,dem=r_height)
 
 if __name__ == '__main__':
     main()
