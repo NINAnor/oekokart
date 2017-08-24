@@ -1388,4 +1388,16 @@ CREATE TABLE "Topography"."Fenoscandia_LandCover_polygon" AS
 CREATE INDEX fenoscandia_landcover_polygon_gix ON "Topography"."Fenoscandia_LandCover_polygon" USING GIST (geom);
 
 VACUUM ANALYZE "Topography"."Fenoscandia_LandCover_polygon";	
+
+-- Create table only with forest and open land 
+CREATE TABLE zofie_cimburova.landcover_nosefi_78 AS
+	SELECT gid, geom,
+       CASE WHEN "ID_l1"=7 THEN 1
+            WHEN "ID_l1"=8 THEN 0
+       END
+	FROM "Topography"."Fenoscandia_LandCover_polygon"
+	WHERE "ID_l1"=7 OR "ID_l1"=8;
+    
+CREATE INDEX landcover_nosefi_78_gix ON "zofie_cimburova"."landcover_nosefi_78" USING GIST (geom);
+VACUUM ANALYZE "zofie_cimburova"."landcover_nosefi_78";	
           
