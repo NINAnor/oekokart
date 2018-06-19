@@ -1,12 +1,20 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Extract and filter forest line
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Extract and filter forest line based on defined rules.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 import os
 import sys
-#from os import listdir
-
-# EXTRACT FOREST LINE
-# FILTER FOREST LINE
 
 def main():
 

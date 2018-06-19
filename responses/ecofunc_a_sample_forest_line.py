@@ -1,10 +1,19 @@
 #!/usr/bin/env python
 
-import grass.script as grass
+"""
+NAME:    Sample forest line
 
-# CREATE SAMPLES OF FOREST LINE
-# MEADIN VALUE
-# NOT USED
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Sample forest line - median value.
+           Not used.
+"""
+
+"""
+To Dos:
+"""
+
+import grass.script as grass
 
 def main():
     r_height = 'dem_10m_nosefi_float@g_Elevation_Fenoscandia'

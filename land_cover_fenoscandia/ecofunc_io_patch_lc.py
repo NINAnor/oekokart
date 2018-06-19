@@ -1,8 +1,19 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Patch tiles of forest and open land cover
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Patch tiles of forest and open land cover.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 
-# PATCH FOREST-OPEN TILES
 
 def main():
 

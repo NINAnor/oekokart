@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 
-# RASTERIZE LAND COVER
-# DETECT FOREST LINE
+"""
+NAME:    Rasterize vector land cover
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Rasterize vector land cover by tiles and link to GRASS.
+"""
+
+"""
+To Dos:
+"""
 
 import grass.script as grass
 import math
