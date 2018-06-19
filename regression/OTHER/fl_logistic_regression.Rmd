@@ -1,0 +1,130 @@
+---
+title: "Logistic regression"
+author: "Zofie Cimburova"
+date: "28 juni 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+opts_knit$set(root.dir = "\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r libraries, message=FALSE} 
+library(gstat)
+library(sp)
+library(raster)
+library(rgdal)  
+library(nnet)
+library(spatstat) # for slrm
+library(geostatsp) # to convert raster to image
+```
+
+# 1. Import observations
+
+- Import rasters of explanatory variables (temperature, TPI, latitude, slope, solar radiation) and response variable (7 - forest, 8 - open land, 9 - forest line):
+
+```{r explanatory} 
+bio11 <- raster("BIO11_kriged_sample.tif", band=1)
+projection(bio11) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+r.explanatory <- brick(bio11,
+                       raster("TPI1010.tif", band=1),
+                       raster("lat.tif", band=1),
+                       raster("slope.tif", band=1),
+                       raster("srad10.tif", band=1),
+                       raster("input_binomial_sample.tif", band=1))
+names(r.explanatory) <- c('BIO11','TPI1010','lat','slope','srad10','response')
+```
+
+
+- Generate random observation points (200) across the whole space. Exclude those where some explanatory variable is NaN. Reclass response variable to 0 (open land) and 1 (forest + forest line)
+```{r extract}
+observations <- sampleRandom(r.explanatory,200, na.rm=TRUE, xy=TRUE)
+
+observations <- as.data.frame(observations)
+
+observations$response[observations$response == 8] <- 0
+observations$response[observations$response == 9] <- 0
+observations$response[observations$response == 7] <- 1
+
+```
+
+
+# 2. Fit binomial logistic regression
+- Solar radiation excluded due to low significance.
+```{r regression}
+#mod<- glm(response ~ BIO11 + TPI1010 + lat + slope,family=binomial(link='logit'),data=observations)
+#summary(mod)
+
+
+
+response.slrm <- as.ppp(observations[,"response"])
+bio11.slrm <- as.im(raster("BIO11_kriged_sample.tif", band=1))
+tpi1010.slrm <- as.im(raster("TPI1010.tif", band=1))
+lat.slrm <- as.im(raster("lat.tif", band=1))
+srad.slrm <- as.im(raster("srad10.tif", band=1))
+
+mod.slrm <- slrm(response.slrm ~ bio11.slrm + tpi1010.slrm + lat.slrm + srad.slrm,link = 'logit')
+
+```
+
+## Check spatial autocorrelation in residuals
+- apparently clusters of similar values exist
+```{r residuals, echo=FALSE}
+if (class(observations) != "data.frame") {
+  observations <- as.data.frame(observations)
+} 
+
+observations$residuals<-data.frame(resids=resid(mod))
+```
+
+```{r plot_residuals, echo=FALSE}
+coordinates(observations) <- ~x+y
+bubble(observations,zcol='resids',main="Residuals in lat-lon space")
+```
+
+
+
+## Predict the whole area
+- Predict probabilities of forest, and then set treshold for forest / open land.
+```{r predict}
+newdata <- rasterToPoints(r.explanatory)
+newdata <- as.data.frame(newdata)
+
+#newdata$predict <- predict(mod,newdata=newdata,type='response')
+#newdata$predict10 <- ifelse(newdata$predict > 0.5,1,0)
+predict.slrm <- predict(mod.slrm, newdata=list(bio11.slrm, tpi1010.slrm, lat.slrm, srad.slrm), type="probabilities")
+
+#predict.raster <- rasterFromXYZ(newdata)
+
+#misClasificError <- mean(fitted.results != test$Survived)
+#print(paste('Accuracy',1-misClasificError))
+```
+- Plot probabilities and observation points
+```{r plot, echo=FALSE}
+#coordinates(observations) <- ~x+y
+
+plot(predict.raster$predict)
+plot(observations, add=TRUE)
+```
+
+- Plot forest / open land and original forest line 
+```{r plot10, echo=FALSE}
+#coordinates(observations) <- ~x+y
+
+fl <- r.explanatory$response
+fl[fl!=9] <- NA
+
+plot(predict.raster$predict10)
+plot(fl, col='red', add=TRUE)
+
+```
+
+
+
+
+
+

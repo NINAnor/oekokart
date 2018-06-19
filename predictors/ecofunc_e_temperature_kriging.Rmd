@@ -1,0 +1,106 @@
+---
+title: "Temperature kriging"
+author: "Zofie Cimburova"
+date: "23 juni 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+opts_knit$set(root.dir = "\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r libraries, message=FALSE} 
+library(rgdal)   
+library(raster)
+library(gstat)
+library(automap)
+library(sp)
+```
+
+# 1. Import datasets - temperature and underlying terrain model
+- 250 m temperature and 250 m DEM
+
+```{r import_datasets} 
+r.bio11 <- raster("BIO11_250m_sample_500.tif", band=1)
+r.bio11[is.na(r.bio11[])] = 0
+
+r.dem <- raster("dem_250m_sample_500.tif", band=1)
+r.dem[is.na(r.dem[])] = 0
+
+projection(r.bio11) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+r.measurements <- as.data.frame(matrix(ncol=4, nrow=r.bio11@nrows*r.bio11@ncols))
+names(r.measurements) = c("x","y","BIO11", "height")
+
+r.measurements$x <- rasterToPoints(r.bio11)[,1]
+r.measurements$y <- rasterToPoints(r.bio11)[,2]
+r.measurements$BIO11 <- rasterToPoints(r.bio11)[,3]
+r.measurements$height <- rasterToPoints(r.dem)[,3]
+
+```
+
+# 2. Import dataset for prediction - 10 m DEM
+
+```{r newdata} 
+#r.dem_new <- raster("dem_10m_sample_large.tif", band=1)
+#names(r.dem_new) <- "height"
+#r.dem_new[is.na(r.dem_new[])] = 0
+#projection(r.dem_new) <- "+proj=utm +zone=33"
+```
+
+
+```{r plot, echo=FALSE}
+#plot(r.bio11, main="BIO11 250 m")
+#plot(r.dem, main="DEM 250 m")
+#plot(r.dem_new, main="DEM 10 m")
+```
+
+```{r info, echo=FALSE}
+#print(dim(r.bio11))
+#print(dim(r.dem))
+#print(dim(r.dem_new))
+```
+
+# 2. Estimate autocorrelation - semivariogram
+
+- evaluate semivariances in 4 directions
+
+```{r subsets, echo=FALSE}
+data_5 <- subset(r.measurements, r.measurements$x<=180035-125+5000 & r.measurements$y>=7020225+125-5000)
+data_50 <- subset(r.measurements, r.measurements$x<=180035-125+50000 & r.measurements$y>=7020225+125-50000)
+data_500 <- subset(r.measurements, r.measurements$x<=180035-125+100000 & r.measurements$y>=7020225+125-100000)
+
+coordinates(data_5)<-c('x','y')
+coordinates(data_50)<-c('x','y')
+coordinates(data_500)<-c('x','y')
+```
+
+```{r variogram, echo=FALSE}
+width = 10000
+alpha=c(0,45,90,135)
+#vario.emp <- variogram(BIO11~height, data=r.measurements, cutoff= width, width=width/200, alpha=c(0,20,40,60,80,100,120,140,160))
+#vario.emp_5 <- variogram(BIO11~height, data=data_5,cutoff= width, width=width/100, alpha=alpha)
+#vario.emp_50 <- variogram(BIO11~height, data=data_50,cutoff= width, width=width/100, alpha=alpha)
+vario.emp_500 <- variogram(BIO11~height, data=data_500,cutoff= width, width=width/100)
+```
+
+```{r ols_variogram, message=FALSE}
+#plot(vario.emp_5)
+#plot(vario.emp_50)
+plot(vario.emp_500)
+#plot(variogramLine(vgm(1, "Mat", 1, kappa = 4), 10), type = 'l')
+```
+
+
+# 3. Regression krigging
+#vgm.fit <- autofitVariogram(BIO11~height,
+#                             r.measurements,
+#                             model = c("Gau"),
+#                             kappa = c(0.05, seq(0.2, 2, 0.1), 5, 10),
+#                             fix.values = c(NA, 8000, NA),
+#                             start_vals = c(NA,NA,NA),
+#                             verbose = T)
+

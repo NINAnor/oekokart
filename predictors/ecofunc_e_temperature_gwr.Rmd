@@ -1,0 +1,72 @@
+---
+title: "Temperature GWR"
+author: "Zofie Cimburova"
+date: "27 juni 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+opts_knit$set(root.dir = "\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r libraries, message=FALSE} 
+library(spgwr)
+library(rgdal)   
+library(raster)
+library(gstat)
+library(automap)
+library(sp)
+library(ggplot2)
+library(maptools)
+```
+
+# 1. Import datasets - temperature and underlying terrain model
+- 250 m temperature and 250 m DEM
+
+```{r import_datasets} 
+r.bio11 <- raster("BIO11_250m_sample_50.tif", band=1)
+r.bio11[is.na(r.bio11[])] = 0
+
+r.dem <- raster("dem_250m_sample_50.tif", band=1)
+r.dem[is.na(r.dem[])] = 0
+
+projection(r.bio11) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+r.measurements <- as.data.frame(matrix(ncol=4, nrow=r.bio11@nrows*r.bio11@ncols))
+names(r.measurements) = c("x","y","BIO11", "height")
+
+r.measurements$x <- rasterToPoints(r.bio11)[,1]
+r.measurements$y <- rasterToPoints(r.bio11)[,2]
+r.measurements$BIO11 <- rasterToPoints(r.bio11)[,3]
+r.measurements$height <- rasterToPoints(r.dem)[,3]
+```
+
+# 2. Import dataset for prediction - 10 m DEM
+
+```{r newdata} 
+r.dem_new <- raster("dem_10m_sample_5.tif", band=1)
+names(r.dem_new) <- "height"
+r.dem_new[is.na(r.dem_new[])] = 0
+projection(r.dem_new) <- "+proj=utm +zone=33"
+```
+
+
+```{r plot, echo=FALSE}
+#plot(r.bio11, main="BIO11 250 m")
+#plot(r.dem, main="DEM 250 m")
+#plot(r.dem_new, main="DEM 10 m")
+```
+
+```{r info, echo=FALSE}
+print(dim(r.bio11))
+#print(dim(r.dem))
+#print(dim(r.dem_new))
+```
+
+# 3. Calibrate bandwidth of kernel
+```{r calibrate_kernel} 
+GWRbandwidth <- gwr.sel(BIO11 ~ height, data=r.measurements, coords=cbind(r.measurements$x,r.measurements$y),adapt=F,method="cv") 
+```

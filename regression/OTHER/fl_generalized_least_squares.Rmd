@@ -1,0 +1,202 @@
+---
+title: "GLS template"
+author: "Zofie Cimburova"
+date: "19 juni 2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+opts_knit$set(root.dir = "\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r libraries, message=FALSE} 
+library(gstat)
+library(sp)
+library(nlme)  
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(raster)
+library(rgdal)  
+library(car)
+```
+
+# 1. Import observations
+
+Load observation points on the forest line and only keep those observation points situated within a limit vertical distance of 15 m from a forest pixel of local maximum altitude:
+```{r import observations, cache = TRUE} 
+forest_line <- read.csv("explanatory_variables.csv")
+forest_line <- forest_line[forest_line$lim<=15,]
+```
+
+```{r include=FALSE} 
+# exclude minimum height
+forest_line <- forest_line[forest_line$height > min(forest_line$height),]
+# exclude column with ones
+forest_line <- subset(forest_line, select = -c(nothing))
+```
+
+- Split observation points to one dataset for prediction and one dataset for test purposes:
+```{r split observations, cache = TRUE} 
+obs <- forest_line[seq(2,nrow(forest_line),2),]
+test<- forest_line[seq(1,nrow(forest_line),2),]
+```
+
+
+- Import rasters of explanatory variables.
+
+```{r explanatory, cache = TRUE} 
+bio11 <- raster("BIO11.tif", band=1)
+projection(bio11) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+r.explanatory <- brick(bio11,
+                       raster("TPI1010.tif", band=1),
+                       raster("lat.tif", band=1))
+names(r.explanatory) <- c('BIO11','TPI1010','lat')
+```
+
+- Correlations between variables
+```{r corr}
+cor(obs[c("height", "BIO11", "TPI1010", "lat")])
+```
+
+- Pair plots of variables
+```{r pressure, echo=FALSE}
+plot(obs[c("height", "BIO11", "TPI1010", "lat")], main="Pair correlations of variables")
+```
+
+
+
+# 2. Fit linear model
+```{r ols, cache = TRUE}
+mod<-lm(height~BIO11 + TPI1010 + lat, data=obs)
+summary(mod)
+```
+
+## Evaluate assumption of independence
+- plot model residuals by spatial coordinates. Residuals are clearly spatially autocorrelated.
+```{r ols_residuals}
+dat.ols<-obs[c("X", "Y")]
+dat.ols$resids<-data.frame(resids=resid(mod))
+coordinates(dat.ols)<-c('X','Y')
+```
+```{r ols_plot_residuals, message=FALSE}
+bubble(dat.ols,zcol='resids',main="Residuals in lat-lon space")
+```
+
+- evaluate semivariances in 4 directions. We can see that spatial autocorrelation occurs in all four directions and follows the same structure.
+```{r ols_semivar, cache = TRUE}
+var.mod<-variogram(resids~1,data=dat.ols,alpha=c(0,45,90,135))
+```
+```{r ols_variogram, message=FALSE}
+plot(var.mod)
+```
+
+## Evaluate multicollinearity
+```{r ols_multi}
+print(vif(mod))
+```
+
+# 2. Fit generalized least squares model
+- Trying several variogram models to find the most optimal one (should be compared by AIC). Those models which are commented did not converge.
+
+```{r gls, cache = TRUE}
+#mod.cor_1<-gls(height~BIO11 + TPI1010 + lat, data=obs,correlation=corExp(form=~X + Y,nugget=TRUE))
+mod.cor_2<-gls(height~BIO11 + TPI1010 + lat, data=obs,correlation=corGaus(form=~X + Y,nugget=TRUE))
+#mod.cor_3<-gls(height~BIO11 + TPI1010 + lat, data=obs,correlation=corLin(form=~X + Y,nugget=TRUE))
+mod.cor_4<-gls(height~BIO11 + TPI1010 + lat, data=obs,correlation=corRatio(form=~X + Y,nugget=TRUE))
+mod.cor_5<-gls(height~BIO11 + TPI1010 + lat, data=obs,correlation=corSpher(form=~X + Y,nugget=TRUE))
+#summary(mod.cor_1)
+```
+
+## Evaluate assumption of independence
+- plot model residuals by spatial coordinates. It is important to explicitly ask for NORMALIZED residuals. The residuals extracted by simple resid() are the raw or response residuals. Essentially this is the difference between the fitted values and the observed values of the response, taking into account the fixed effects terms only. These values will contain the same residual autocorrelation as that of m1 because the linear predictors are the same in the two models.
+-	In the plots below, the residuals of Gaussian and Rational model seem much less autocorrelated than when applying OLS. The residuals of the spherical model still show some pattern though.
+
+```{r glm_residuals, cache = TRUE}
+#dat.gls_1 <- obs[c("X", "Y")]
+#dat.gls_1$resids<-data.frame(resids=resid(mod.cor_1, type="normalized"))
+dat.gls_2 <- obs[c("X", "Y")]
+dat.gls_2$resids<-data.frame(resids=resid(mod.cor_2, type="normalized"))
+#dat.gls_3 <- obs[c("X", "Y")]
+#dat.gls_3$resids<-data.frame(resids=resid(mod.cor_3, type="normalized"))
+dat.gls_4 <- obs[c("X", "Y")]
+dat.gls_4$resids<-data.frame(resids=resid(mod.cor_4, type="normalized"))
+dat.gls_5 <- obs[c("X", "Y")]
+dat.gls_5$resids<-data.frame(resids=resid(mod.cor_5, type="normalized"))
+
+#coordinates(dat.gls_1)<-c('X','Y')
+coordinates(dat.gls_2)<-c('X','Y')
+#coordinates(dat.gls_3)<-c('X','Y')
+coordinates(dat.gls_4)<-c('X','Y')
+coordinates(dat.gls_5)<-c('X','Y')
+```
+
+```{r gls_plot_residuals, message=FALSE}
+
+#bubble(dat.gls_1,zcol='resids', main='Residuals of exponential model in lat-lon space')
+bubble(dat.gls_2,zcol='resids', main='Residuals of Gaussian model in lat-lon space')
+#bubble(dat.gls_3,zcol='resids', main='Residuals of linear model in lat-lon space')
+bubble(dat.gls_4,zcol='resids', main='Residuals of rational quadratics model in lat-lon space')
+bubble(dat.gls_5,zcol='resids', main='Residuals of spherical model in lat-lon space')
+```
+
+- Evaluate semivariances in 4 directions. There does not seem to be any significant structure in semivariances of all three models.
+```{r gls_semivar, cache = TRUE}
+#var.mod.cor_1<-variogram(resids~1,data=dat.gls_1,alpha=c(0,45,90,135))
+var.mod.cor_2<-variogram(resids~1,data=dat.gls_2,alpha=c(0,45,90,135))
+#var.mod.cor_3<-variogram(resids~1,data=dat.gls_3,alpha=c(0,45,90,135))
+var.mod.cor_4<-variogram(resids~1,data=dat.gls_4,alpha=c(0,45,90,135))
+var.mod.cor_5<-variogram(resids~1,data=dat.gls_5,alpha=c(0,45,90,135))
+```
+```{r gls_variogram, message=FALSE}
+#plot(var.mod.cor_1, main='Semivariances of residuals of exponential model in four directions')
+plot(var.mod.cor_2, main='Semivariances of residuals of Gaussian model in four directions')
+#plot(var.mod.cor_3, main='Semivariances of residuals of linear model in four directions')
+plot(var.mod.cor_4, main='Semivariances of residuals of rational quadratics model in four directions')
+plot(var.mod.cor_5, main='Semivariances of residuals of spherical model in four directions')
+```
+
+## Evaluate multicollinearity
+```{r gls_multi}
+print(vif(mod.cor_2))
+print(vif(mod.cor_4))
+print(vif(mod.cor_5))
+```
+
+## Use AIC to choose the best model
+```{r aic, cache = TRUE}
+AIC(mod, mod.cor_2, mod.cor_4, mod.cor_5)
+print(AIC)
+```
+
+## Predict the whole area
+```{r export, cache = TRUE}
+newdata <- as.data.frame(rasterToPoints(r.explanatory))
+newdata$predicted_height.ols <-predict(mod, newdata, na.action = na.pass)
+newdata$predicted_height.gls_2 <-predict(mod.cor_2, newdata, na.action = na.pass)
+newdata$predicted_height.gls_4 <-predict(mod.cor_4, newdata, na.action = na.pass)
+newdata$predicted_height.gls_5 <-predict(mod.cor_5, newdata, na.action = na.pass)
+
+r.height_model.ols <- rasterFromXYZ(newdata[,c("x","y","predicted_height.ols")])
+r.height_model.gls_2 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_2")])
+r.height_model.gls_4 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_4")])
+r.height_model.gls_5 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_5")])
+
+projection(r.height_model.ols) <- "+proj=utm +zone=33"
+projection(r.height_model.gls_2) <- "+proj=utm +zone=33"
+projection(r.height_model.gls_4) <- "+proj=utm +zone=33"
+projection(r.height_model.gls_5) <- "+proj=utm +zone=33"
+
+writeRaster(r.height_model.ols, filename="temp_height_OLS.tif", format="GTiff", overwrite=TRUE)
+writeRaster(r.height_model.gls_2, filename="temp_height_GLS2.tif", format="GTiff", overwrite=TRUE)
+writeRaster(r.height_model.gls_4, filename="temp_height_GLS4.tif", format="GTiff", overwrite=TRUE)
+writeRaster(r.height_model.gls_5, filename="temp_height_GLS5.tif", format="GTiff", overwrite=TRUE)
+```
+
+

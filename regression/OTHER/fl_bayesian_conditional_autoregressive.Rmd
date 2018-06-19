@@ -1,0 +1,140 @@
+---
+title: "CAR"
+author: "Zofie Cimburova"
+date: "6 juli 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+opts_knit$set(root.dir = "\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r libraries, message=FALSE} 
+library(ggplot2)
+library(raster)
+library(rgdal)  
+library(spdep)
+library(gstat)
+library(rasterVis)
+library(CARBayes)
+```
+
+# 1. Import observations
+
+Load observation points on the forest line and only keep those observation points situated within a limit vertical distance of 15 m from a forest pixel of local maximum altitude:
+```{r import observations} 
+forest_line <- read.csv("explanatory_variables.csv")
+forest_line <- forest_line[forest_line$lim<=15,]
+```
+
+```{r include=FALSE} 
+# exclude minimum height
+forest_line <- forest_line[forest_line$height > min(forest_line$height),]
+# exclude column with ones
+forest_line <- subset(forest_line, select = -c(nothing))
+# exclude observations too far from others
+#sqrt(sum( (A[i,] - B[j,])^2 ))
+```
+
+- Split observation points to one dataset for prediction and one dataset for test purposes:
+```{r split observations} 
+obs <- forest_line[seq(2,nrow(forest_line),2),]
+test<- forest_line[seq(1,nrow(forest_line),2),]
+```
+
+
+- Import rasters of explanatory variables.
+
+```{r explanatory, cache = TRUE} 
+bio11 <- raster("BIO11_kriged_sample.tif", band=1)
+projection(bio11) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+
+r.explanatory <- brick(bio11,
+                       raster("TPI1010.tif", band=1),
+                       raster("lat.tif", band=1), 
+                       raster("slope.tif", band=1),
+                       raster("srad10.tif", band=1),
+                       raster("DEM.tif", band=1),
+                       raster("forest_line_10m.tif", band=1))
+names(r.explanatory) <- c('BIO11','TPI1010','lat','slope','srad','height','forest_line')
+```
+
+# 3. Fit CAR
+
+## check semivariances to find range
+```{r ols_semivar, cache = TRUE}
+coordinates(obs)<-c('X','Y')
+
+var.mod<-variogram(height~BIO11 + srad + lat + slope + TPI1010,data=obs)
+```
+```{r ols_variogram, message=FALSE}
+plot(var.mod)
+```
+
+## 3.1. Calculate 1st order neighbourhood list for CAR model using standard weights.
+!!! limit distance d2 needs to be changed so that each observation point has at least one neighbour
+```{r car_neigh, cache = TRUE}
+neighbours <- dnearneigh(cbind(obs$X, obs$Y), d1 = 0, d2 = 2000)
+#neighbours <- knn2nb(knearneigh(cbind(obs$X, obs$Y), k=100))
+```
+
+## 3.2. Calculate spatial weights for neighbours lists
+```{r car_neigh_weight, cache = TRUE}
+listw <- nb2listw(neighbours = neighbours,
+                  glist = NULL,
+                  style = "W",
+                  zero.policy = NULL)
+W.mat <- nb2mat(neighbours = neighbours, style = "B")
+```
+
+## 3.3. Fit CAR
+```{r car_fit, cache = TRUE}
+obs <- as.data.frame(obs)
+mod.car <- errorsarlm(formula = height~BIO11 + srad + lat + TPI1010, 
+                      data = obs,
+                      listw = listw)
+```
+
+```{r bcar_fit, cache = TRUE}
+mod.bcar <- CARBayes::S.CARleroux(formula = height~BIO11 + srad + lat + TPI1010,
+                            family='gaussian', 
+                            data = obs,
+                            W = W.mat, 
+                            burnin = 20000, 
+                            n.sample = 100000,
+                            thin = 10)
+```
+
+## 3.4. Predict the whole area
+!!! If Error "missing values in newdata", there are missing values in newdata in fact, and need to be excluded (na.action does not help) or replaced or whatever
+```{r export, cache = TRUE}
+newdata <- as.data.frame(rasterToPoints(r.explanatory))
+newdata[is.na(newdata)] <- 0
+newdata$predicted_height.car <-predict(mod.car, newdata)
+
+
+r.height_model.car <- rasterFromXYZ(newdata[,c("x","y","predicted_height.car")])
+
+projection(r.height_model.car) <- "+proj=utm +zone=33"
+
+r.explanatory$forest_line_predict <- r.explanatory$height - r.height_model.car
+#writeRaster(r.height_model.car, filename="temp_height_car.tif", format="GTiff", overwrite=TRUE)
+```
+
+```{r difference, message=FALSE}
+
+#theme_set(theme_bw())
+#gplot(r.forest_line) + geom_tile(aes(fill = value)) +
+#          facet_wrap(~ variable) +
+#          scale_fill_gradient2(low = "red", mid = "white", high = "blue", midpoint = 0) +
+#          coord_equal()
+
+fl.predict <- levelplot(r.explanatory$forest_line_predict, margin = FALSE, main = "predicted height of forest line", at = unique(c(seq(-150,-10,length=100), seq(-10,0,length=100),seq(0,10,length=100), seq(10,100,length=100))), col.regions = colorRampPalette(c("blue","blue","white","red","red"))(1e3), alpha.regions = 0.35)
+
+fl.obs <- levelplot(r.explanatory$forest_line, margin = FALSE, col.regions = "black" )
+
+print(fl.predict + fl.obs)
+```
