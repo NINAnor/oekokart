@@ -1,13 +1,20 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Compute longitude and latitude
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute longitude and latitude by mergin tiles.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 
-# LATITUDE AND LONGITUDE 
-
 def main():
-    #--------------------------------------------------------------------#
-    #---------------- MERGE LONGITUDE AND LATITUDE TILES ----------------#
-    #--------------------------------------------------------------------#
     r_longitude_10 = 'longitude_10m'
     
     # merge in 4 groups - all are too much to load

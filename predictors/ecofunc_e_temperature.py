@@ -1,8 +1,19 @@
 #!/usr/bin/env python
 
-import grass.script as grass
+"""
+NAME:    Compute temperature and precipitation
 
-    # TEMPERATURE AND PRECIPITATION INTERPOLATION
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute temperature and precipitation.
+           GWR interpolation, Gussian kernel.
+"""
+
+"""
+To Dos:
+"""
+
+import grass.script as grass
 
 def main():
 

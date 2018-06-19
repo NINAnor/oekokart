@@ -1,8 +1,18 @@
 #!/usr/bin/env python
 
-import grass.script as grass
+"""
+NAME:    Compute solar radiation
 
-# SOLAR RADIATION
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute solar radiation by mergin tiles and aggregating per seasons.
+"""
+
+"""
+To Dos:
+"""
+
+import grass.script as grass
 
 def main():
     # merge tiles
@@ -14,7 +24,6 @@ def main():
                                           pattern='GlobalRadiation_10m_doy_*',
                                           mapset='g_EnergyResources_SolarRadiation')
     
-    #expression_year = ''
     for layer in layers_sorad_year:
         expression_year = '{}+{}@g_EnergyResources_SolarRadiation'.format(\
                           expression_year,layer)

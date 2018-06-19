@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Compute wind exposure
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute wind exposure.
+           TOPEX in 8 directions.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 import math
 import sys

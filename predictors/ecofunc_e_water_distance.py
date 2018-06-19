@@ -1,8 +1,19 @@
 #!/usr/bin/env python
 
-import grass.script as grass
+"""
+NAME:    Compute proximity to water bodies
 
-# PROXIMITY TO WATER
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute proximity to water bodies.
+           Euclidean distance.
+"""
+
+"""
+To Dos:
+"""
+
+import grass.script as grass
 
 def main():
 

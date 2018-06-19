@@ -1,8 +1,8 @@
-/*NAME:    Queries for preparation of predictir maps
+/*NAME:    Queries for preparation of predictor maps
 
 AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
 
-PURPOSE:   Queries for preparation of predictir maps - sea distance.
+PURPOSE:   Queries for preparation of predictor maps - sea distance.
 
 */
 

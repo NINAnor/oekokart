@@ -1,15 +1,26 @@
 #!/usr/bin/env python
 
-import grass.script as grass
+"""
+NAME:    Compute terrain indices
 
-# TERRAIN INDICES
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute terrain indices.
+           TRI, TPI, RTP, SDE.
+"""
+
+"""
+To Dos:
+"""
+
+import grass.script as grass
 
 def main():
 
 
     # TRI
-    #r_tri = 'dem_10m_nosefi_float_tri@g_Elevation_Fenoscandia'
-    #grass.run_command('r.tri', overwrite=True, wsize=1, dem=r_height, tri=r_tri)
+    r_tri = 'dem_10m_nosefi_float_tri@g_Elevation_Fenoscandia'
+    grass.run_command('r.tri', overwrite=True, wsize=1, dem=r_height, tri=r_tri)
 
    
     # TPI
@@ -20,9 +31,9 @@ def main():
     
     r_height_10 = "dem_10m_nosefi_float@g_Elevation_Fenoscandia"
     r_height = 'dem_50m_nosefi@g_Elevation_Fenoscandia'
-    #grass.run_command('g.mapset', mapset='g_Elevation_Fenoscandia')
-    #grass.run_command('g.region', n=7939995, s=6132445, e=1335785, w=-77365, res=resolution)
-    #grass.run_command('r.resamp.stats', input=r_height_10, output=r_height, overwrite=True)
+    grass.run_command('g.mapset', mapset='g_Elevation_Fenoscandia')
+    grass.run_command('g.region', n=7939995, s=6132445, e=1335785, w=-77365, res=resolution)
+    grass.run_command('r.resamp.stats', input=r_height_10, output=r_height, overwrite=True)
     grass.run_command('g.mapset', mapset='g_Elevation_Fenoscandia_TPI')
     grass.run_command('g.region', raster=r_height)
 

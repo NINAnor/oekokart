@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Compute continentality indices
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute continentality indices.
+           Distance from sea and open ocean.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 from osgeo import gdal, ogr, osr
 from gdalconst import *
 import sys
-
-# CONTINENTALITY INDICES
-# SEA PROXIMITY
 
 def main():
     
@@ -29,6 +39,7 @@ def main():
                      if('+r_sea_binary+'==1,1,null())')
     grass.run_command('g.remove', flags='f', type='raster', name=r_sea_binary)
 
+    
     #---------------------------------------------------#
     #---------------- DISTANCE FROM SEA ----------------#
     #---------------------------------------------------#
@@ -39,6 +50,7 @@ def main():
     grass.run_command('r.grow.distance', overwrite=True, input=r_sea, 
                       distance=r_sea_distance)
 
+                      
     #--------------------------------------------------------#
     #---------------- DISTANCE FROM OPEN SEA ----------------#
     #--------------------------------------------------------#
