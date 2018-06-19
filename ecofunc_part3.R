@@ -1,8 +1,8 @@
-setwd("\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA")
+setwd("\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
 
 
 # ------------------------------------ #
-# ---------- 0. import data ---------- #
+# ---------- import data ---------- #
 # ------------------------------------ #
 
 ### observation points
@@ -16,71 +16,150 @@ forest_line <- forest_line[forest_line$height > min(forest_line$height),]
 min(forest_line$height)
 
 # half to predict, half to validate
-even_indexes<-seq(2,nrow(forest_line),2)
-odd_indexes<-seq(1,nrow(forest_line),2)
-
-fl_predict <- forest_line[even_indexes,]
-fl_test    <- forest_line[odd_indexes,]
+fl_predict <- forest_line[seq(2,nrow(forest_line),2),]
+fl_test    <- forest_line[seq(1,nrow(forest_line),2),]
 
 
 ### rasters of explanatory variables
 library(rgdal)   
-r.dem <- readGDAL("DEM.tif")
-names(r.dem@data) <- "height"
-r.bio11 <- readGDAL("BIO11.tif")
-names(r.bio11@data) <- "BIO11"
-r.tpi1010 <- readGDAL("TPI1010.tif")
-names(r.tpi1010@data) <- "TPI1010"
+library(raster)
 
-r.explanatory <- r.bio11
-r.explanatory$TPI1010 <- r.tpi1010$TPI1010 
+bio11 <- raster("BIO11.tif", band=1)
+projection(bio11) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 
-projection(r.explanatory) <- "+proj=utm +zone=33"
-
-
-# --------------------------------------------- #
-# ---------- 1. preliminary analysis ---------- #
-# --------------------------------------------- #
-
-# 1. colinearity between explanatory variables?
-# -> Spearman rank correlation coefficient - makes no assumptions about linearity in the relationship between the two variables
-cor(forest_line[, 6:16], method = "spearman")
-a = pairs(forest_line[, 6:16])
-
-# scatter plots
-scatter.smooth(forest_line$BIO18, forest_line$BIO19)
-cor(forest_line$BIO18, forest_line$BIO19)
+r.explanatory <- brick(bio11,
+                       raster("BIO12.tif", band=1),
+                       raster("TPI1010.tif", band=1),
+                       raster("slope.tif", band=1),
+                       raster("srad10.tif", band=1),
+                       raster("lat.tif", band=1))
+names(r.explanatory) <- c('BIO11','BIO12','TPI1010', 'slope', 'srad', 'lat')
 
 
-# 2. spatial autocorrelation?
-# -> plot
+# -------------------------------- #
+# ---------- 1. OLS ---------- #
+# -------------------------------- #
+library(ape)
 library(ncf)
-Correlog <- spline.correlog(x = fl_predict$X[1:500], y = fl_predict$Y[1:500], z = residuals[1:500], xmax = 4700)
+
+## fit lm
+model.ols <- lm(formula = height~BIO11 + BIO12 + TPI1010 + slope + srad + lat, data = fl_predict)
+
+## check s-a in residuals using Moran's I and correlogram
+fl_predict$residuals <- residuals(model.ols)
+
+# Moran's I
+fl_predict.dists.inv <- as.matrix(dist(cbind(fl_predict$X, fl_predict$Y)))
+fl_predict.dists.inv <- 1/fl_predict.dists.inv
+diag(fl_predict.dists.inv) <- 0
+Moran.I(fl_predict$residuals, fl_predict.dists.inv)
+
+# Correlogram
+Correlog <- spline.correlog(x = fl_predict$X[1:500], y = fl_predict$Y[1:500], z = fl_predict$residuals[1:500], xmax = 4700)
 plot.spline.correlog(Correlog)
 
+
+## evaluate models using test data
+# sum of squared differences
+SSD.lm <- sum((predict.lm(object = model.ols, fl_test) - fl_test$height)^2)
+
+# mean absolute differences
+MAD.lm <- sum(abs(predict.lm(object = model.ols, fl_test) - fl_test$height))/nrow(fl_test)
+
+## predict the whole area
+newdata <- as.data.frame(rasterToPoints(r.explanatory))
+newdata$predicted_height <-predict.lm(object = model.ols, newdata)
+
+# export
+r.height_model.ols <- rasterFromXYZ(newdata[,c("x","y","predicted_height")])
+projection(r.height_model.ols) <- "+proj=utm +zone=33"
+writeRaster(r.height_model.ols, filename="temp_height_OLS.tif", format="GTiff", overwrite=TRUE)
+
+
 # -------------------------------- #
-# ---------- 0. try OLS ---------- #
+# ---------- 2. GLS ---------- #
 # -------------------------------- #
+library (nlme)
 
-# try predict height with lm
-model1 <- lm(formula = height~BIO11 + BIO10 + BIO01 + BIO18 +
-               BIO12 + srad + lat +lon + slope, data = fl_predict)
-summary(model1)
+## fit gls without any correlation structure
+# result is identical to the one of OLS
+model.gls_0 <- gls(height~BIO11 + BIO12 + TPI1010 + slope + srad + lat, data = fl_predict)
 
-# residuals
-fl_predict$residuals <- residuals(model1)
+## check s-a in residuals
+# semi-variance is clearly increasing with distance. We have a confirmation that spatial autocorrelation is present in our residuals.
+variogram.gls <- Variogram(model.gls_0, form = ~X + Y, resType = "pearson")
+plot(variogram.gls, smooth = TRUE, ylim = c(0, 1.2))
+
+# Fit model with a spatial correlation structure using the correlation argument in gls function
+# Fit model using different correlation structures
+# Use AIC to choose the best model
+# The nugget argument allows us to choose wether we want a nugget effect (intercept) or not.
+# !!! formula must be explicit, otherwise prediction does not work
+model.gls_1 <- gls(height~BIO11 + BIO12 + TPI1010 + slope + srad + lat, correlation = corExp(form = ~X + Y, nugget = TRUE), data = fl_predict)
+# model.gls_1 did not convergate
+model.gls_2 <- gls(height~BIO11 + TPI1010 + lat, correlation = corGaus(form = ~X + Y, nugget = TRUE), data = fl_predict)
+model.gls_3 <- gls(height~BIO11 + BIO12 + TPI1010 + slope + srad + lat, correlation = corSpher(form = ~X + Y, nugget = TRUE), data = fl_predict)
+model.gls_4 <- gls(height~BIO11 + BIO12 + TPI1010 + slope + srad + lat, correlation = corLin(form = ~X + Y, nugget = TRUE), data = fl_predict)
+model.gls_5 <- gls(height~BIO11 + BIO12 + TPI1010 + slope + srad + lat, correlation = corRatio(form = ~X + Y, nugget = TRUE), data = fl_predict)
 
 
-# plot
-library(latticeExtra)
+## check s-a in residuals using Moran's I and correlogram
+fl_predict$residuals.gls3 <- residuals(model.gls_3)
 
-grps <- 10
-brks <- quantile(fl_predict$residuals, 0:(grps-1)/(grps-1), na.rm=TRUE)
-pts <- cbind(fl_predict$X, fl_predict$Y)
-spplot(SpatialPointsDataFrame(pts, fl_predict), "residuals", at=brks, col.regions=rev(brewer.pal(grps, "RdBu")), col="black")
+# Moran's I
+Moran.I(fl_predict$residuals.gls3, fl_predict.dists.inv)
+
+# Correlogram
+Correlog <- spline.correlog(x = fl_predict$X[1:500], y = fl_predict$Y[1:500], z = fl_predict$residuals.gls3[1:500], xmax = 4700)
+plot.spline.correlog(Correlog)
+
+
+
+## evaluate models using test data
+# sum of squared differences
+SSD.gls_0 <- sum((predict(model.gls_0, fl_test) - fl_test$height)^2)
+SSD.gls_2 <- sum((predict(model.gls_2, fl_test) - fl_test$height)^2)
+SSD.gls_3 <- sum((predict(model.gls_3, fl_test) - fl_test$height)^2)
+SSD.gls_4 <- sum((predict(model.gls_4, fl_test) - fl_test$height)^2)
+SSD.gls_5 <- sum((predict(model.gls_5, fl_test) - fl_test$height)^2)
+
+# mean absolute differences
+MAD.gls_0 <- sum(abs(predict(model.gls_0, fl_test) - fl_test$height))/nrow(fl_test)
+MAD.gls_2 <- sum(abs(predict(model.gls_2, fl_test) - fl_test$height))/nrow(fl_test)
+MAD.gls_3 <- sum(abs(predict(model.gls_3, fl_test) - fl_test$height))/nrow(fl_test)
+MAD.gls_4 <- sum(abs(predict(model.gls_4, fl_test) - fl_test$height))/nrow(fl_test)
+MAD.gls_5 <- sum(abs(predict(model.gls_5, fl_test) - fl_test$height))/nrow(fl_test)
+
+# AIC
+AIC(model.gls_0, model.gls_2, model.gls_3, model.gls_4, model.gls_5)
+
+## predict the whole area
+newdata <- as.data.frame(rasterToPoints(r.explanatory))
+newdata$predicted_height.gls_2 <-predict(model.gls_2, newdata, na.action = na.pass)
+newdata$predicted_height.gls_3 <-predict(model.gls_3, newdata, na.action = na.pass)
+newdata$predicted_height.gls_4 <-predict(model.gls_4, newdata, na.action = na.pass)
+newdata$predicted_height.gls_5 <-predict(model.gls_5, newdata, na.action = na.pass)
+
+
+# export
+r.height_model.gls_2 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_2")])
+r.height_model.gls_3 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_3")])
+r.height_model.gls_4 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_4")])
+r.height_model.gls_5 <- rasterFromXYZ(newdata[,c("x","y","predicted_height.gls_5")])
+
+projection(r.height_model.gls_2) <- "+proj=utm +zone=33"
+projection(r.height_model.gls_3) <- "+proj=utm +zone=33"
+projection(r.height_model.gls_4) <- "+proj=utm +zone=33"
+projection(r.height_model.gls_5) <- "+proj=utm +zone=33"
+
+writeRaster(r.height_model.gls_2, filename="temp_height_GLS2.tif", format="GTiff", overwrite=TRUE)
+writeRaster(r.height_model.gls_3, filename="temp_height_GLS3.tif", format="GTiff", overwrite=TRUE)
+writeRaster(r.height_model.gls_4, filename="temp_height_GLS4.tif", format="GTiff", overwrite=TRUE)
+writeRaster(r.height_model.gls_5, filename="temp_height_GLS5.tif", format="GTiff", overwrite=TRUE)
+
 
 # ------------------------------------------------ #
-# ---------- 1. try regression krigging ---------- #
+# ---------- 3. regression krigging ---------- #
 # ------------------------------------------------ #
 library(gstat)
 
@@ -107,8 +186,18 @@ writeRaster(r.height_model2, filename="temp_height_model2.tif", format="GTiff", 
 
 
 
+# ------------------------------------------------ #
+# ---------- 4. collocated cokrigging ---------- #
+# ------------------------------------------------ #
+
+g.cc <- gstat(NULL, "blabla", height~BIO11+TPI1010, data=fl_predict, model = vgm.fit)
+
+# kriging
+x <- predict(g.cc, fl_predict)
+
+
 # ------------------------------------------------------- #
-# ---------- 2. try SAR for forest line height ---------- #
+# ---------- 4. try SAR for forest line height ---------- #
 # ------------------------------------------------------- #
 library(spdep)
 
@@ -131,7 +220,7 @@ fl.SAR.e <- errorsarlm(formula=height~BIO11+BIO10+BIO01+BIO18+BIO19+BIO12+srad+l
 
 
 # ------------------------------------------------------- #
-# ---------- 3. try GWR for forest line height ---------- #
+# ---------- 5. try GWR for forest line height ---------- #
 # ------------------------------------------------------- #
 # gwr
 library(maptools)
