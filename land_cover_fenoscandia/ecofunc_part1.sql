@@ -1,3 +1,16 @@
+/*NAME:    Create Fennoscandian landcover map
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Create Fennoscandian landcover map by mergin Norwegian, Swedish and Finnish data.
+           Geometry check and correction.
+           Standardization of landcover classes.
+*/
+
+/*
+To Dos:
+*/
+
 -- intersection when problems like "non-noded intersection" (in clip_sweden)
 -- https://gis.stackexchange.com/questions/50399/how-best-to-fix-a-non-noded-intersection-problem-in-postgis
 CREATE OR REPLACE FUNCTION "zofie_cimburova".safe_isect(geom_a geometry, geom_b geometry)

@@ -1,6 +1,14 @@
-###########################
-### TopographicMap_100k ###
-###########################
+#
+# NAME:    Download Finnish TopographicMap_100k
+#
+# AUTHOR(S): Stefan Blumentrath < stefan.blumentrath AT nina.no>
+#
+# PURPOSE:   Download Finnish TopographicMap_100k by tiles.
+#
+
+#
+#To Dos:
+#
 
 ### Metadata:
 # http://www.paikkatietohakemisto.fi/geonetwork/srv/eng/catalog.search#/metadata/5c671d8d-be58-4f5d-8242-a150ecc82f95

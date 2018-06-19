@@ -1,3 +1,15 @@
+/*NAME:    Queries for preparation of predictir maps
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Queries for preparation of predictir maps - sea distance.
+
+*/
+
+/*
+To Dos:
+*/
+
 -----------------------------------------------------------
 -- Queries used for preparation of explanatory variables --
 -----------------------------------------------------------
