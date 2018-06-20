@@ -1,0 +1,7 @@
+#!/bin/bash
+
+#Run this script with:"bash rasterize.sh"
+
+# rasterize shapefile
+gdal_rasterize  -a LC_TYPE -a_nodata -999999 -te 148350 6519850 363720 6795710 -tr 10 10 -ot UInt32 -l fkb_ar5_oslo_kommuner_avgrensing fkb_ar5_oslo_kommuner_avgrensing.shp fkb_ar5.tif
+g.region n=6795710 s=6519850 e=363720 w=148350 res=10
