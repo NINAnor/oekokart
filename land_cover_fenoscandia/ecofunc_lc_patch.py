@@ -14,7 +14,6 @@ To Dos:
 
 import grass.script as grass
 
-
 def main():
 
     # 1. PATCH FILTERED TILES TOGETHER

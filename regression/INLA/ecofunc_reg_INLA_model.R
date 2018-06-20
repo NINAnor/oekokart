@@ -10,18 +10,15 @@
 #To Dos: Not finished, version for exploring the functionality
 #
 
-
 setwd("/data/home/zofie.cimburova/ECOFUNC/DATA/SAMPLE")
 
 library(gridExtra)
 library(lattice)
 library(fields)
 library(geostatsp) # to convert raster to image
-
 library(raster)
 library(ggplot2)
 library(INLA)
-
 
 ####################
 # 1. load the data #

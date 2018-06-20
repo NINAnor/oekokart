@@ -1,9 +1,20 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Predict forest occurrence 
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Predict forest occurrence using coefficients computed in R.
+           To be used in INLA.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 import numpy as np
-
-# IMPORT COEFFICIENTS OF PREDICTORS COMPUTED IN R
 
 
 def main():
@@ -57,13 +68,13 @@ def main():
 
     # compute probability of forest
     grass.run_command('r.mapcalc',expression=expression, overwrite=True)
-    #grass.run_command('r.mapcalc',expression='{}=exp({})/(1+exp({}))'.format(\
-    #                   r_prediction,r_prediction,r_prediction),overwrite=True)
+    grass.run_command('r.mapcalc',expression='{}=exp({})/(1+exp({}))'.format(\
+                       r_prediction,r_prediction,r_prediction),overwrite=True)
 
     # compute residuals
-    #r_residuals = 'forest_open_residuals_10m'
-    #grass.run_command('r.mapcalc', expression= "{}={}-{}".format(\
-    #                  r_residuals,r_prediction,r_landcover),overwrite=True)
+    r_residuals = 'forest_open_residuals_10m'
+    grass.run_command('r.mapcalc', expression= "{}={}-{}".format(\
+                      r_residuals,r_prediction,r_landcover),overwrite=True)
 
 
 if __name__ == '__main__':

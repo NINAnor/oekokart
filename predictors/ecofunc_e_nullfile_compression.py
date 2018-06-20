@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Nullfile compression
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compress nulls to save space on disc.
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 import os.path
 
@@ -22,10 +34,6 @@ def main():
             grass.run_command('r.null', flags='z', map=map) 
         else:
             print 'nullfile of {} compressed'.format(map)
-
-
-
-
 
 if __name__ == '__main__':
     main()

@@ -1,9 +1,22 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Regular sampling of explanatory variables - nearest neighbour in 3km grid
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Regular sampling of explanatory variables.
+           Nearest neighbour in 3km grid.
+           Exporting to .csv.
+           To be used in INLA
+"""
+
+"""
+To Dos:
+"""
+
 import grass.script as grass
 
-# SAMPLE EXPLANATORY VARIABLES IN 3x3km GRID AND 
-# EXPORT TO CSV FILE TO USE IN R
 
 def main():
     r_landcover = 'forest_open_fenoscandia_10m@g_LandCover_Fenoscandia'
@@ -18,24 +31,24 @@ def main():
     
     # resample forest / open
     r_landcover_samp = 'forest_open_fenoscandia_nn_3000m'
-    #grass.run_command('r.resample', input=r_landcover, 
-    #                  output=r_landcover_samp, overwrite=True)
+    grass.run_command('r.resample', input=r_landcover, 
+                      output=r_landcover_samp, overwrite=True)
 
     # vectorize mask
     v_sample_mask = 'temp_forest_open_mask'
-    #grass.run_command('r.to.vect', flags='t', input=r_landcover_samp,
-    #                  output=v_sample_mask, type='area')
+    grass.run_command('r.to.vect', flags='t', input=r_landcover_samp,
+                      output=v_sample_mask, type='area')
 
     # create 3x3 km vector sampling grid
     v_sample_grid = 'sample_grid_3000m'
-    #grass.run_command('v.mkgrid', map=v_sample_grid, box='3000,3000',
-    #                  type='point', overwrite=True)
+    grass.run_command('v.mkgrid', map=v_sample_grid, box='3000,3000',
+                      type='point', overwrite=True)
 
     # clip vector sampling grid with mask
     v_sample_grid_clip = 'sample_grid_3000m_clip'
-    #grass.run_command('v.clip', input=v_sample_grid, 
-    #                  clip=v_sample_mask, output=v_sample_grid_clip,
-    #                  overwrite=True)
+    grass.run_command('v.clip', input=v_sample_grid, 
+                      clip=v_sample_mask, output=v_sample_grid_clip,
+                      overwrite=True)
 
     grass.run_command('g.remove', flags='f', type='vector', name=v_sample_grid)
     grass.run_command('g.remove', flags='f', type='vector', name=v_sample_mask)
@@ -86,31 +99,31 @@ def main():
                   'longitude_10m@g_GeographicalGridSystems_Fenoscandia',
                   'dem_10m_nosefi@g_Elevation_Fenoscandia']
     
-    #for predictor in predictors:
+    for predictor in predictors:
 
-    #    r_predictor_samp = 'temp_{}_33samp'.format(predictor.split('@', 1)[0])
-    #    grass.run_command('r.resample', input=predictor, 
-    #                      output=r_predictor_samp, overwrite=True)
+        r_predictor_samp = 'temp_{}_33samp'.format(predictor.split('@', 1)[0])
+        grass.run_command('r.resample', input=predictor, 
+                          output=r_predictor_samp, overwrite=True)
 
         # create column for predictor in attribute table
         # (! columns are created in lower case)
-    #    column = '{}'.format(predictor.split('@', 1)[0])
-    #    column = str.lower(column)
+        column = '{}'.format(predictor.split('@', 1)[0])
+        column = str.lower(column)
 
-    #    grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                      columns='{} double precision'.format(column))
+        grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                          columns='{} double precision'.format(column))
        
         # populate column with predictor value
-    #    grass.run_command('v.what.rast', map=v_sample_grid_clip, 
-    #                      raster=r_predictor_samp, column=column)
+        grass.run_command('v.what.rast', map=v_sample_grid_clip, 
+                          raster=r_predictor_samp, column=column)
     
     # create column for coordinates X and Y
-    #grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                  columns='X double precision, Y double precision')
+    grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='X double precision, Y double precision')
 
     # populate column with coordinates X and Y
-    #grass.run_command('v.to.db', map=v_sample_grid_clip, option='coor', 
-    #                  columns='X,Y')
+    grass.run_command('v.to.db', map=v_sample_grid_clip, option='coor', 
+                      columns='X,Y')
 
     # create column for response in attribute table
     grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,

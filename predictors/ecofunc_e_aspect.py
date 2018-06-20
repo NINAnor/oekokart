@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 
+"""
+NAME:    Compute aspect
+
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Compute sine and cosine of aspect.
+"""
+
+"""
+To Dos:
+"""
 import grass.script as grass
 import math
 

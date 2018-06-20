@@ -1,20 +1,24 @@
 #!/bin/bash
 
-#Run this script with:"bash rasterize_tiles.sh  &> tile_list.txt"
+#
+#NAME:    Rasterize vector land cover tiles in gdal
+#
+#AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+#
+#PURPOSE:   Rasterize vector land cover tiles in gdal.
+#
 
-# rasterize land cover tiles (only forest / open land due to speed)
+#
+#To Dos:
+#
+
+#Run this script with:"bash rasterize_tiles.sh  &> tile_list.txt"
 
 STARTx=-77335
 ENDx=1335785
 
 STARTy=6132475
 ENDy=7939995
-
-#STARTx=231932
-#ENDx=241932
-
-#STARTy=6977798
-#ENDy=6987798
 
 for ((x=STARTx; x<=ENDx; x=x+10000))
 do
@@ -37,5 +41,5 @@ do
 done
 
 # build mosaic
-#gdalbuildvrt -input_file_list tile_list.txt LC_mosaic.vrt
+gdalbuildvrt -input_file_list tile_list.txt LC_mosaic.vrt
 

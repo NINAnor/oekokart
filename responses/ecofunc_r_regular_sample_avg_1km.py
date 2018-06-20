@@ -1,9 +1,21 @@
 #!/usr/bin/env python
 
-import grass.script as grass
+"""
+NAME:    Regular sampling of explanatory variables - average and median in 1km grid
 
-# SAMPLE EXPLANATORY VARIABLES AND 
-# EXPORT TO CSV FILE TO USE IN R
+AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+
+PURPOSE:   Regular sampling of explanatory variables.
+           Average and median in 1km grid.
+           Exporting to .csv.
+           To be used in INLA
+"""
+
+"""
+To Dos:
+"""
+
+import grass.script as grass
 
 def main():
     r_landcover = 'forest_open_fenoscandia_10m@g_LandCover_Fenoscandia'
@@ -13,88 +25,88 @@ def main():
     # ######################### #
     # 50 km buffer from open land
 
-    #grass.run_command('g.region', raster=r_land_cover, res=50, flags='a')
+    grass.run_command('g.region', raster=r_land_cover, res=50, flags='a')
     
-    #r_land_cover_50m = 'temp_landcover_forest_open_fenoscandia_50m'
-    #grass.run_command('r.resamp.stats', input=r_land_cover,\
-    #                  output=r_land_cover_50m, method='minimum')
+    r_land_cover_50m = 'temp_landcover_forest_open_fenoscandia_50m'
+    grass.run_command('r.resamp.stats', input=r_land_cover,\
+                      output=r_land_cover_50m, method='minimum')
 
-    #limit_km = 50
-    #limit_pix = limit_km*1000/50
+    limit_km = 50
+    limit_pix = limit_km*1000/50
     
     # extract only open land
-    #r_land_cover_reclassed = 'temp_open'
-    #grass.run_command('r.mapcalc', overwrite=True, 
-    #                  expression='{}=if({}==0,1,null())'.format(\
-    #                  r_land_cover_reclassed,r_land_cover_50m))
+    r_land_cover_reclassed = 'temp_open'
+    grass.run_command('r.mapcalc', overwrite=True, 
+                      expression='{}=if({}==0,1,null())'.format(\
+                      r_land_cover_reclassed,r_land_cover_50m))
     
     # tile to limit km + 120 km + limit km (max = 32000 pix)
-    #tile_limit_km = 120
-    #tile_limit_pix = tile_limit_km*1000/50
-    #grass.run_command('r.tile', input=r_land_cover_reclassed, 
-    #                  output=r_land_cover_reclassed, width=tile_limit_pix,
-    #                  height=tile_limit_pix, overlap=limit_pix)
+    tile_limit_km = 120
+    tile_limit_pix = tile_limit_km*1000/50
+    grass.run_command('r.tile', input=r_land_cover_reclassed, 
+                      output=r_land_cover_reclassed, width=tile_limit_pix,
+                      height=tile_limit_pix, overlap=limit_pix)
 
     # buffer for each tile
-    #tile_list = grass.parse_command('g.list', type='raster', 
-    #                                pattern='temp_open-*',
-    #                                mapset='g_LandCover_Fenoscandia') 
-    #for tile in tile_list:
+    tile_list = grass.parse_command('g.list', type='raster', 
+                                    pattern='temp_open-*',
+                                    mapset='g_LandCover_Fenoscandia') 
+    for tile in tile_list:
         # set comp. region to tile
-    #    grass.run_command('g.region', raster=tile)
+        grass.run_command('g.region', raster=tile)
         
         # check if tile contains anything
-    #    stats = grass.parse_command('r.stats', flags='c', input=tile)
+        stats = grass.parse_command('r.stats', flags='c', input=tile)
         
         # if tile contains any information
-    #    tile_buffer = 'tile_open_buffer{}'.format(tile[9:])
-    #    tile_buffer = tile_buffer.replace('-','_')
-    #    print tile_buffer
-    #    if len(stats.keys()) > 1:
-    #        print 'tile {} contains open land, file {} created'.format(tile, tile_buffer)
-    #        grass.run_command('r.grow', overwrite=True, input=tile,
-    #                          output=tile_buffer, radius=limit_pix,
-    #                          old=1, new=1)
-    #    else: 
-    #        print 'tile {} contains nothing'.format(tile)
+        tile_buffer = 'tile_open_buffer{}'.format(tile[9:])
+        tile_buffer = tile_buffer.replace('-','_')
+        print tile_buffer
+        if len(stats.keys()) > 1:
+            print 'tile {} contains open land, file {} created'.format(tile, tile_buffer)
+            grass.run_command('r.grow', overwrite=True, input=tile,
+                              output=tile_buffer, radius=limit_pix,
+                              old=1, new=1)
+        else: 
+            print 'tile {} contains nothing'.format(tile)
 
     # patch first raster
     r_mountain_areas = 'mountain_areas_50m@g_LandCover_Fenoscandia'
-    #grass.run_command('g.region', raster=r_land_cover_reclassed)
-    #tile_list = []
+    grass.run_command('g.region', raster=r_land_cover_reclassed)
+    tile_list = []
 
-    #for i in range(14):
-    #    for j in range(14):
-    #        tile = 'tile_open_buffer_{}_{}'.format(str(i).zfill(3),str(j).zfill(3))
+    for i in range(14):
+        for j in range(14):
+            tile = 'tile_open_buffer_{}_{}'.format(str(i).zfill(3),str(j).zfill(3))
 
             # check if tile exists
-    #        exists = grass.find_file(tile, element = 'cell', mapset='g_LandCover_Fenoscandia')
+            exists = grass.find_file(tile, element = 'cell', mapset='g_LandCover_Fenoscandia')
 
-    #        if exists['fullname']:
-    #            print '{} exists. Patching.'.format(tile)
-    #            tile_list.append(tile)
-    #        else:
-    #            print '{} does not exist. Skipping.'.format(tile)
+            if exists['fullname']:
+                print '{} exists. Patching.'.format(tile)
+                tile_list.append(tile)
+            else:
+                print '{} does not exist. Skipping.'.format(tile)
     
     # patch
-    #grass.run_command('r.patch', input=tile_list, 
-    #                  output=r_mountain_areas, overwrite=True)
+    grass.run_command('r.patch', input=tile_list, 
+                      output=r_mountain_areas, overwrite=True)
 
     # remove 50 m landcover
-    #grass.run_command('g.remove', flags='f', type='raster',
-    #                  name=r_land_cover_50m)
+    grass.run_command('g.remove', flags='f', type='raster',
+                      name=r_land_cover_50m)
 
     # remove tiles of buffer
-    #grass.run_command('g.remove', flags='f', type='raster',
-    #                  pattern='tile_open_buffer_*')
+    grass.run_command('g.remove', flags='f', type='raster',
+                      pattern='tile_open_buffer_*')
 
     # remove tiles of open land
-    #grass.run_command('g.remove', flags='f', type='raster',
-    #                  pattern='temp_open-*')
+    grass.run_command('g.remove', flags='f', type='raster',
+                      pattern='temp_open-*')
 
     # remove open land raster
-    #grass.run_command('g.remove', flags='f', type='raster',
-    #                  name=r_land_cover_reclassed)
+    grass.run_command('g.remove', flags='f', type='raster',
+                      name=r_land_cover_reclassed)
 
 
 
@@ -111,32 +123,32 @@ def main():
 
     # compute how big portion of cell is covered by forest and open land 
     r_landcover_count = 'temp_landcover_count_1000m'
-    #grass.run_command('r.resamp.stats', input=r_landcover, method='count',
-    #                  output=r_landcover_count, overwrite=True)
+    grass.run_command('r.resamp.stats', input=r_landcover, method='count',
+                      output=r_landcover_count, overwrite=True)
 
     # mask areas with coverage less than 50 % = 5000 cells
     r_sample_mask = 'temp_mask_landcover_count'
-    #grass.run_command('r.mapcalc', overwrite = True, 
-    #                  expression='{}=if({}>=5000,1,null())'.format(\
-    #                  r_sample_mask,r_landcover_count))
+    grass.run_command('r.mapcalc', overwrite = True, 
+                      expression='{}=if({}>=5000,1,null())'.format(\
+                      r_sample_mask,r_landcover_count))
     grass.run_command('r.mask', raster=r_sample_mask, overwrite=True)
 
     # vectorize mask
-    #v_sample_mask = 'temp_mask_landcover_count'
-    #grass.run_command('r.to.vect', flags='t', input=r_sample_mask,
-    #                  output=v_sample_mask, type='area')
+    v_sample_mask = 'temp_mask_landcover_count'
+    grass.run_command('r.to.vect', flags='t', input=r_sample_mask,
+                      output=v_sample_mask, type='area')
 
     # create 1x1 km vector sampling grid
     # this makes 2 554 704 sampling points, but not all of them will be used,
     # some will be masked out
-    #v_sample_grid_01 = 'sample_grid_01_1000m'
-    #grass.run_command('v.mkgrid', map=v_sample_grid_01, box='1000,1000',
-    #                  type='point', overwrite='TRUE')
+    v_sample_grid_01 = 'sample_grid_01_1000m'
+    grass.run_command('v.mkgrid', map=v_sample_grid_01, box='1000,1000',
+                      type='point', overwrite='TRUE')
 
     # clip vector sampling grid with mask
     v_sample_grid_clip = 'sample_grid_1000m_clip'
-    #grass.run_command('v.clip', input=v_sample_grid_01, 
-    #                  clip=v_sample_mask, output=v_sample_grid_clip)
+    grass.run_command('v.clip', input=v_sample_grid_01, 
+                      clip=v_sample_mask, output=v_sample_grid_clip)
     
 
     # ################################## #
@@ -279,85 +291,85 @@ def main():
                   'longitude_10m@g_GeographicalGridSystems_Fenoscandia']
 
     # predictors - median value
-    #for predictor in predictors:
+    for predictor in predictors:
 
         # compute median of predictor in 1 km cell
-        #r_predictor_med = 'temp_{}_med'.format(predictor.split('@', 1)[0])
-        #grass.run_command('r.resamp.stats', input=predictor,
-        #                  output=r_predictor_med, method='median',
-        #                  overwrite=True)
+        r_predictor_med = 'temp_{}_med'.format(predictor.split('@', 1)[0])
+        grass.run_command('r.resamp.stats', input=predictor,
+                          output=r_predictor_med, method='median',
+                          overwrite=True)
 
         # create column for predictor in attribute table
         # (! columns are created in lower case)
-        #column_med = '{}'.format(predictor.split('@', 1)[0])
-        #column_med = str.lower(column_med)
+        column_med = '{}'.format(predictor.split('@', 1)[0])
+        column_med = str.lower(column_med)
 
-        #grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-        #              columns='{} double precision'.format(column_med))
+        grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='{} double precision'.format(column_med))
        
         # populate column with predictor value
-        #grass.run_command('v.what.rast', map=v_sample_grid_clip, 
-        #                  raster=r_predictor_med, column=column_med)
+        grass.run_command('v.what.rast', map=v_sample_grid_clip, 
+                          raster=r_predictor_med, column=column_med)
     
     predictors = ['dem_10m_topex_exposure@g_Elevation_Fenoscandia_TOPEX']
     # predictors - average value
-    #for predictor in predictors:
+    for predictor in predictors:
     # compute average of predictor in 1 km cell
-    #    r_predictor_avg = 'temp_{}_avg'.format(predictor.split('@', 1)[0])
-    #    grass.run_command('r.resamp.stats', input=predictor,
-    #                      output=r_predictor_avg, method='average',
-    #                      overwrite=True)
+        r_predictor_avg = 'temp_{}_avg'.format(predictor.split('@', 1)[0])
+        grass.run_command('r.resamp.stats', input=predictor,
+                          output=r_predictor_avg, method='average',
+                          overwrite=True)
 
         # create column for predictor in attribute table
         # (! columns are created in lower case)
-    #    column_avg = '{}'.format(predictor.split('@', 1)[0])
-    #    column_avg = str.lower(column_avg)
+        column_avg = '{}'.format(predictor.split('@', 1)[0])
+        column_avg = str.lower(column_avg)
 
-    #    grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                  columns='{} double precision'.format(column_avg))
+        grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='{} double precision'.format(column_avg))
        
         # populate column with predictor value
-    #    grass.run_command('v.what.rast', map=v_sample_grid_clip, 
-    #                      raster=r_predictor_avg, column=column_avg)
+        grass.run_command('v.what.rast', map=v_sample_grid_clip, 
+                          raster=r_predictor_avg, column=column_avg)
 
     # create column for coordinates X and Y
-    #grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                  columns='X double precision, Y double precision')
+    grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='X double precision, Y double precision')
 
     # populate column with coordinates X and Y
-    #grass.run_command('v.to.db', map=v_sample_grid_clip, option='coor', columns='X,Y')
+    grass.run_command('v.to.db', map=v_sample_grid_clip, option='coor', columns='X,Y')
 
     # create column for average height
-    #grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                  columns='height double precision')
+    grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='height double precision')
 
     # populate column with height
     r_height_1000 = 'dem_1000m_nosefi_avg@g_Elevation_Fenoscandia'
-    #grass.run_command('v.what.rast', map=v_sample_grid_clip, 
-    #                  raster=r_height_1000, column='height')
+    grass.run_command('v.what.rast', map=v_sample_grid_clip, 
+                      raster=r_height_1000, column='height')
 
     # response - Ntrials and Nsuccess
     # number of successes
     r_landcover_nsuccess = 'landcover_nsuccess_1000m'
-    #grass.run_command('r.resamp.stats', input=r_landcover, method='sum',
-    #                  output=r_landcover_nsuccess, overwrite=True)
+    grass.run_command('r.resamp.stats', input=r_landcover, method='sum',
+                      output=r_landcover_nsuccess, overwrite=True)
     
     # number of trials
     r_landcover_ntrials = 'landcover_ntrials_1000m'
-    #grass.run_command('r.resamp.stats', input=r_landcover, method='count',
-    #                  output=r_landcover_ntrials, overwrite=True)
+    grass.run_command('r.resamp.stats', input=r_landcover, method='count',
+                      output=r_landcover_ntrials, overwrite=True)
 
     # create columns - Ntrials and Nsuccess
-    #rass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                  columns='ntrials int')
-    #grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
-    #                  columns='nsuccess int')
+    rass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='ntrials int')
+    grass.run_command('v.db.addcolumn', map=v_sample_grid_clip,
+                      columns='nsuccess int')
 
     # populate columns - Ntrials and Nsuccess
-    #grass.run_command('v.what.rast', map=v_sample_grid_clip, 
-    #                  raster=r_landcover_ntrials, column='ntrials')
-    #grass.run_command('v.what.rast', map=v_sample_grid_clip, 
-    #                  raster=r_landcover_nsuccess, column='nsuccess')
+    grass.run_command('v.what.rast', map=v_sample_grid_clip, 
+                      raster=r_landcover_ntrials, column='ntrials')
+    grass.run_command('v.what.rast', map=v_sample_grid_clip, 
+                      raster=r_landcover_nsuccess, column='nsuccess')
 
     # export attribute table to csv
     table_variables = '/data/home/zofie.cimburova/ECOFUNC/DATA/observations_fenoscandia'
