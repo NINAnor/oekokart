@@ -1,0 +1,62 @@
+objecttype;LUOKKA;Code N1;Code N2;Code N3
+Mineral resources extraction area, coarse-grained material;32111;6;601;6011
+Mineral resources extraction area, fine-grained material;32112;6;601;6012
+Resources extraction area, organic material;32113;6;604;
+Cemetery;32200;3;303;
+Waste tip;32300;6;603;
+Airfield runway, paved;32411;3;304;3041
+Airfield runway, unpaved;32412;3;304;3042
+Other airfield area;32413;3;305;
+Other air traffic area;32414;3;305;
+Other airfield area, paved;32415;3;305;3051
+Other airfield area, unpaved;32416;3;305;3052
+Other air traffic area, paved;32417;3;305;3051
+Other air traffic area, unpaved;32418;3;305;3052
+Motor traffic area;32421;3;307;
+Quarry;32500;6;602;
+Field;32611;4;401;
+Garden;32612;9;902;
+Meadow;32800;4;402;
+Park;32900;9;901;
+Earth fill;33000;5;;
+Sports and recreation area;33100;11;;
+Rock - area;34100;8;801;
+Sand;34300;8;803;
+Rocky area;34700;8;801;
+Paludified land;35300;8;802;8023
+Open bog, easy to traverse treeless;35411;8;802;8021
+Bog, easy to traverse forested;35412;7;701;7011
+Open fen, difficult to traverse treeless;35421;8;802;8022
+Fen, difficult to traverse forested;35422;7;701;7012
+Lake water;36200;12;1203;
+Sea water;36211;12;1202;
+Watercourse area;36313;12;1201;
+Silting water area;38300;12;1205;
+Flooded area;38400;12;1207;
+Boulders in water;38600;8;805;
+Shallows;38700;12;1204;
+Storage area;38900;3;308;
+Open forestland;39110;7;;
+Brush;39120;7;705;
+Open reliction;39130;8;804;
+Densely built area;40200;3;;
+Residential building   number of floors unspecified;42210;3;302;
+Residental building   1-2 floors;42211;3;302;3021
+Residential building   3-n floors;42212;3;302;3022
+Office or public building   number of floors unspecified;42220;3;312;
+Office or public building  1-2 floors;42221;3;312;3121
+Office or public building   3-n floors;42222;3;312;3122
+Holiday building   number of floors unspecified;42230;3;301;
+Holiday building  1-2 floors;42231;3;301;3011
+Holiday building   3-n floors;42232;3;301;3012
+Industrial building   number of floors unspecified;42240;3;311;
+Industrial building   1-2 floors;42241;3;311;3111
+Industrial building   3-n floors;42242;3;311;3112
+Religious building   number of floors unspecified;42250;3;310;
+Religious building  1-2 floors;42251;3;310;3101
+Religious building  3-n floors;42252;3;310;3102
+Other building  number of floors unspecified;42260;3;;
+Other building  1-2 floors;42261;3;;
+Other building   3-n floors;42262;3;;
+Church;42270;3;310;
+Basin - area;44300;3;;

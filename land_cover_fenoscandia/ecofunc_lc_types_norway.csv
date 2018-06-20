@@ -1,0 +1,23 @@
+OBJTYPE;Code N1;Code N2;Code N3
+Steintipp;1;;
+Hyttefelt;3;301;3011
+Gravplass;3;303;
+Rullebane;3;304;
+Lufthavn;3;305;
+BymessigBebyggelse;3;;
+TettBebyggelse;3;;
+DyrketMark;4;;
+Steinbrudd;6;602;
+Industriområde;6;;
+Skog;7;;
+Myr;8;802;
+ÅpentOmråde;8;;
+Park;9;901;
+Alpinbakke;11;1101;
+Golfbane;11;1102;
+SportIdrettPlass;11;;
+ElvBekk;12;1201;
+Havflate;12;1202;
+Innsjø;12;1203;
+SnøIsbre;2;;
+FerskvannTørrfall;12;;

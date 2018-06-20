@@ -1,0 +1,18 @@
+DETALJTYP;Translation;Code N1;Code N2;Code N3
+BEBLÅG;Low built-up area ;3;301;
+BEBHÖG;High built-up area;3;302;
+ÖPTORG;Square;3;306;
+BEBYGG;Built-up area, unspecified ;3;;
+BEBSLUT;Blocks of built-up area;3;;
+ODLÅKER;Arable land ;4;;
+BEBIND;Industrial area ;6;;
+SKOGBARR;Coniferous and mixed forest;7;702;
+SKOGFBJ;Mountain birch forest ;7;703;
+SKOGLÖV;Deciduous forest;7;704;
+ÖPKFJÄLL;Bare mountain region above the treeline;8;801;
+ÖPMARK;Other open area;8;;
+MRKÖVR;Other land, unclassified;8;;
+ODLFRUKT;Orchards;9;903;
+VATTEN;Water (lakes and large rivers);12;;
+ÖPGLAC;Glacier;2;;
+MRKO;Unmapped area;1;;
