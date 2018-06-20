@@ -1,9 +1,20 @@
+#NAME:    Exploring other regression models
+#
+#AUTHOR(S): Zofie Cimburova < zofie.cimburova AT nina.no>
+#
+#PURPOSE:   Exploring other regression models.
+#           OLS, GLS, rgression kriging, collocated cokriging, SAR, GWR, PCA.
+#
+
+#
+#To Dos: 
+#
+
 setwd("\\\\storage01/zofie.cimburova/My Documents/ecofunc/DATA/sample")
 
-
-# ------------------------------------ #
-# ---------- import data ---------- #
-# ------------------------------------ #
+# ================================= #
+# ========== import data ========== #
+# ================================= #
 
 ### observation points
 forest_line <- read.csv("explanatory_variables.csv")
@@ -36,9 +47,9 @@ r.explanatory <- brick(bio11,
 names(r.explanatory) <- c('BIO11','BIO12','TPI1010', 'slope', 'srad', 'lat')
 
 
-# -------------------------------- #
-# ---------- 1. OLS ---------- #
-# -------------------------------- #
+# ================================= #
+# ============= 1. OLS ============ #
+# ================================= #
 library(ape)
 library(ncf)
 
@@ -76,9 +87,9 @@ projection(r.height_model.ols) <- "+proj=utm +zone=33"
 writeRaster(r.height_model.ols, filename="temp_height_OLS.tif", format="GTiff", overwrite=TRUE)
 
 
-# -------------------------------- #
-# ---------- 2. GLS ---------- #
-# -------------------------------- #
+# ================================= #
+# ============ 2. GLS ============= #
+# ================================= #
 library (nlme)
 
 ## fit gls without any correlation structure
@@ -158,9 +169,9 @@ writeRaster(r.height_model.gls_4, filename="temp_height_GLS4.tif", format="GTiff
 writeRaster(r.height_model.gls_5, filename="temp_height_GLS5.tif", format="GTiff", overwrite=TRUE)
 
 
-# ------------------------------------------------ #
-# ---------- 3. regression krigging ---------- #
-# ------------------------------------------------ #
+# ================================= #
+# ==== 3. regression krigging ===== #
+# ================================= #
 library(gstat)
 
 # convert input to SpatialPointsDataFrame
@@ -186,9 +197,9 @@ writeRaster(r.height_model2, filename="temp_height_model2.tif", format="GTiff", 
 
 
 
-# ------------------------------------------------ #
-# ---------- 4. collocated cokrigging ---------- #
-# ------------------------------------------------ #
+# ================================= #
+# === 4. collocated cokrigging ==== #
+# ================================= #
 
 g.cc <- gstat(NULL, "blabla", height~BIO11+TPI1010, data=fl_predict, model = vgm.fit)
 
@@ -196,9 +207,9 @@ g.cc <- gstat(NULL, "blabla", height~BIO11+TPI1010, data=fl_predict, model = vgm
 x <- predict(g.cc, fl_predict)
 
 
-# ------------------------------------------------------- #
-# ---------- 4. try SAR for forest line height ---------- #
-# ------------------------------------------------------- #
+# ================================= #
+# ============ 5. SAR ============= #
+# ================================= #
 library(spdep)
 
 # create neighbourhood
@@ -216,21 +227,18 @@ fl.SAR.e <- errorsarlm(formula=height~BIO11+BIO10+BIO01+BIO18+BIO19+BIO12+srad+l
                        data=fl_predict)
 
 
-
-
-
-# ------------------------------------------------------- #
-# ---------- 5. try GWR for forest line height ---------- #
-# ------------------------------------------------------- #
+# ================================= #
+# =========== 6. GWR ============== #
+# ================================= #
 # gwr
 library(maptools)
 library(spdep)
+library(spgwr)
+
 owd <- getwd()
 setwd(system.file("etc/shapes", package = "spdep"))
 NY8 <- readShapeSpatial("NY8_utm18")
 setwd(owd)
-
-library(spgwr)
 
 # cross validation of bandwidth
 bwG <- gwr.sel(height ~ BIO11 + BIO10 + BIO01 + BIO18 + BIO12 + srad + lat + lon + slope, data = fl_predict, coords = cbind(fl_predict$X, fl_predict$Y), gweight = gwr.Gauss, verbose = FALSE)
@@ -238,15 +246,11 @@ bwG <- gwr.sel(height ~ BIO11 + BIO10 + BIO01 + BIO18 + BIO12 + srad + lat + lon
 # gwr
 gwrG <- gwr(height ~ BIO11 + BIO10 + BIO01 + BIO18 + BIO12 + srad + lat + lon + slope, data = fl_predict, coords = cbind(fl_predict$X, fl_predict$Y), bandwidth = bwG,
             gweight = gwr.Gauss, hatmatrix = TRUE)
-gwrG
 
 
-
-
-
-# ---------------------------- #
-# ---------- 4. PCA ---------- #
-# ---------------------------- #
+# ================================= #
+# ============ 7. PCA ============= #
+# ================================= #
 library(pls)
 
 attributes <- cbind(forest_line$BIO11, forest_line$BIO10, forest_line$BIO01, forest_line$BIO18, forest_line$BIO19, forest_line$BIO12, forest_line$srad, forest_line$lat, forest_line$lon, forest_line$slope, forest_line$aspect)
