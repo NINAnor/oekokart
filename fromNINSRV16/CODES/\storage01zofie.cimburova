@@ -1,0 +1,413 @@
+#!/usr/bin/env python
+
+# careful for gaps before/behind =
+
+import grass.script as grass
+from grass.script import run_command, message, parser
+from osgeo import gdal, ogr, osr
+from gdalconst import *
+from grass.pygrass.modules.shortcuts import vector as v
+from grass.pygrass.modules import Module
+
+
+def main():
+
+    #---------------------------------------------------------#
+    #----------------------- RASTERIZE -----------------------#
+    #---------------------------------------------------------#
+    
+    # 1. open DB connection
+    #conn = ogr.Open('PG:dbname=gisdata')
+
+    #for layer in conn:
+        # find layer to rasterize
+        # TODO - how to open directly this layer?
+    #    if layer.GetName() == 'zofie_cimburova.temp_norway':
+    #        source_layer = layer
+    
+    #---------------------------------------------------------#
+    # 2. get raster parametres
+    #rast_param = grass.parse_command('r.info', flags = 'g', map='dem_10m_nosefi_float@PERMANENT')
+    #rows = rast_param.rows
+    #cols = rast_param.cols
+    #xmin = rast_param.west
+    #xmax = rast_param.east
+    #ymin = rast_param.south
+    #ymax = rast_param.north
+    #xres = rast_param.nsres
+    #yres = rast_param.ewres
+    
+    xmin = 202170
+    xmax = 207750
+    ymin = 7038350
+    ymax = 7045170
+
+    xres = 10
+    yres = 10
+
+    rows = (ymax-ymin)/xres
+    cols = (xmax-xmin)/xres
+ 
+
+    #---------------------------------------------------------#
+    # 3. create an empty raster
+    # Filename of the raster Tiff that will be created
+    #output_raster = 'temp_norway.tif' 
+
+    # Create dataset: Create(name, resolution x, resolution y, bands, data type
+    #driver = gdal.GetDriverByName('GTiff')
+    #target_ds = driver.Create(output_raster, int(cols), int(rows), 1, gdal.GDT_Int16)
+
+    # Projection
+    #proj = osr.SpatialReference()
+    #proj.SetUTM(33,1)
+    #proj.SetWellKnownGeogCS("EPSG:25833")
+    #target_ds.SetProjection(proj.ExportToWkt())
+
+    # Transformation (top left x, w-e pixel resolution, rotation, top-left y, rotation, n-s pixel resolution)
+    #target_ds.SetGeoTransform((int(xmin), int(xres), 0, int(ymax), 0, -int(yres)))
+
+    # No data value
+    #band = target_ds.GetRasterBand(1)
+    #band.SetNoDataValue(-999)
+
+    #---------------------------------------------------------#
+    # 4. Rasterize
+    # open dataset (GA_ReadOnly / GA_Update)
+    #target_ds = gdal.Open( output_raster, GA_Update )
+
+    #layerDefinition = source_layer.GetLayerDefn()
+    #attribute = layerDefinition.GetFieldDefn(2).GetName()
+    #print attribute
+
+    #gdal.RasterizeLayer(target_ds, [1], source_layer, options=["ATTRIBUTE=%s" % (attribute)])
+
+    #target_ds = None
+
+    #---------------------------------------------------------#
+    # 5. Get raster statistics to see that something was produced
+    #target_ds = gdal.Open( output_raster, GA_ReadOnly )
+    #srcband = target_ds.GetRasterBand(1)
+    #stats = srcband.GetStatistics(True, True)
+
+    # Print the min, max, mean, stdev based on stats index
+    #print "[ STATS ] =  Minimum=%.3f, Maximum=%.3f, Mean=%.3f, StdDev=%.3f" % (stats[0], stats[1], stats[2], stats[3])
+
+
+    #---------------------------------------------------------#
+    # 6. Link to GRASS
+    r_land_cover = 'temp_norway@u_zofie.cimburova'
+    #grass.run_command('r.external', input='/data/home/zofie.cimburova/'+output_raster, output=r_land_cover)
+
+   
+
+
+    #-------------------------------------------------------------------#
+    #----------------------- EXTRACT FOREST LINE -----------------------#
+    #-------------------------------------------------------------------#
+    r_height = 'dem_10m_nosefi_float@PERMANENT'
+
+    #---------------------------------------------------------#
+    # exclude open areas which are below forest altitude
+    
+    # group conected pixels in open areas and calculate their standard deviation
+    r_open_area_stdev = 'LC_open_stdev'
+    #grass.run_command('r.clump', overwrite=True, input=r_land_cover, output=r_open_area_stdev)
+     
+    #grass.run_command('r.mapcalc', overwrite=True,\
+    #                  expression=r_open_area_stdev+'=if('+r_land_cover+'==800,'+r_open_area_stdev+',null())')
+
+    #grass.run_command('r.stats.zonal', overwrite=True,\
+    #                                   base=r_open_area_stdev,\
+    #                                   cover=r_height, method='stddev',
+    #                                   output=r_open_area_stdev)
+    
+
+    #---------------------------------------------------------#
+    # extract forest line based on rules
+    r_forest_line = 'forest_line'
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_forest_line+'=('+r_land_cover+'== 700) * (  \
+    #                  (('+r_land_cover+'[-1,-1] == 800)*('+r_height+'[-1,-1] >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[-1,0]  == 800)*('+r_height+'[-1,0]  >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[-1,1]  == 800)*('+r_height+'[-1,1]  >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[0,-1]  == 800)*('+r_height+'[0,-1]  >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[0,1]   == 800)*('+r_height+'[0,1]   >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[1,-1]  == 800)*('+r_height+'[1,-1]  >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[1,0]   == 800)*('+r_height+'[1,0]   >= '+r_height+'[0,0])) + \
+    #                  (('+r_land_cover+'[1,1]   == 800)*('+r_height+'[1,1]   >= '+r_height+'[0,0])))' \
+    #                  )
+    
+    # reclass to null - 1
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_forest_line+'=\
+    #                  if('+r_forest_line+'>0,1,null())')
+
+
+    #---------------------------------------------------------#
+    # filter forest line
+    # 1. take only DEM in forest
+    r_height_10_forest = 'dem_10m_forest'
+    #grass.run_command('r.mapcalc', overwrite = True, expression=r_height_10_forest+'= \
+    #                  if('+r_land_cover+'==700,'+r_height+',null())')
+    
+    # 2. compute maximum (99% quantile) altitude in 25*10 m neighbourhood
+    r_height_250_forest_max = 'dem_250m_forest_max'
+    #grass.run_command('r.neighbors', overwrite = True, input=r_height_10_forest, \
+    #                  selection=r_height_10_forest, output=r_height_250_forest_max, \
+    #                  method='quantile', quantile=0.9, size=25)
+
+    # 3. compute difference between pixel and maximum local altitude
+    r_height_250_forest_diff = 'dem_250m_forest_diff'
+    #grass.run_command('r.mapcalc', overwrite = True, expression=r_height_250_forest_diff+'= \
+    #                  '+r_height_250_forest_max+'-'+r_height)
+
+
+    
+
+    #-------------------------------------------------------------------#
+    #----------------------- RESAMPLE TEMPERATURE-----------------------#
+    #-------------------------------------------------------------------#
+    r_temperature_bio01 = 'eurolst_clim.bio01@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio02 = 'eurolst_clim.bio02@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio03 = 'eurolst_clim.bio03@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio05 = 'eurolst_clim.bio05@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio06 = 'eurolst_clim.bio06@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio07 = 'eurolst_clim.bio07@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio10 = 'eurolst_clim.bio10@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+    r_temperature_bio11 = 'eurolst_clim.bio11@g_Meteorology_Fenoscandia_EuroLST_BIOCLIM'
+
+    # change resolution of region to 250m
+    #grass.run_command('g.region', raster=r_temperature_bio01, flags='p')
+    #grass.run_command('g.region', res=250, flags='p')
+
+    # resample height to obtain average height in each 250m pixel
+    r_height_250 = 'temp_dem_250m'
+    #grass.run_command('r.resamp.stats', input=r_height, output=r_height_250, flags='w', overwrite=True)
+
+    # change resolution of region back to 10m
+    #grass.run_command('g.region', raster=r_height, flags='p')
+    #grass.run_command('g.region', res=10, flags='p')
+
+    # create new temperature
+    r_temperature_bio01_10m = 'eurolst_clim.bio01_10m'
+    r_temperature_bio02_10m = 'eurolst_clim.bio02_10m'
+    r_temperature_bio03_10m = 'eurolst_clim.bio03_10m'
+    r_temperature_bio05_10m = 'eurolst_clim.bio05_10m'
+    r_temperature_bio06_10m = 'eurolst_clim.bio06_10m'
+    r_temperature_bio07_10m = 'eurolst_clim.bio07_10m'
+    r_temperature_bio10_10m = 'eurolst_clim.bio10_10m'
+    r_temperature_bio11_10m = 'eurolst_clim.bio11_10m'
+
+    # interpolate
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio01_10m + '=( \
+    #                 '+r_temperature_bio01+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio02_10m + '=( \
+    #                 '+r_temperature_bio02+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio03_10m + '=( \
+    #                 '+r_temperature_bio03+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio05_10m + '=( \
+    #                 '+r_temperature_bio05+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio06_10m + '=( \
+    #                 '+r_temperature_bio06+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio07_10m + '=( \
+    #                 '+r_temperature_bio07+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio10_10m + '=( \
+    #                 '+r_temperature_bio10+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_temperature_bio11_10m + '=( \
+    #                 '+r_temperature_bio11+'-('+r_height+'-'+r_height_250+')*0.6/10)')
+
+
+    #--------------------------------------------------------------------#
+    #---------------- MERGE LONGITUDE AND LATITUDE TILES ----------------#
+    #--------------------------------------------------------------------#
+    r_longitude_10 = 'longitude_10m'
+    
+    # merge in 4 groups - all are too much to load
+    layers_long1 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*longitude_tile_0[0,1,2,3]*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_long1, output='longitude_10m_1')
+
+    layers_long2 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*longitude_tile_0[4,5,6]*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_long2, output='longitude_10m_2')
+
+    layers_long3 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*longitude_tile_0[7,8,9]*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_long3, output='longitude_10m_3')
+
+    layers_long4 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*longitude_tile_1*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_long4, output='longitude_10m_4')
+
+    # merge groups and delete temporary files
+    #grass.run_command('r.patch', overwrite=True, input='longitude_10m_1,longitude_10m_2,longitude_10m_3,longitude_10m_4', output=r_longitude_10)
+    #grass.run_command('g.remove', type='raster', name='longitude_10m_1,longitude_10m_2,longitude_10m_3,longitude_10m_4', flags='f')
+
+    r_latitude_10 = 'latitude_10m'
+
+    # merge in 4 groups - all are too much to load
+    #layers_lat1 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*latitude_tile_0[0,1,2,3]*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_lat1, output='latitude_10m_1')
+
+    #layers_lat2 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*latitude_tile_0[4,5,6]*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_lat2, output='latitude_10m_2')
+
+    #layers_lat3 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*latitude_tile_0[7,8,9]*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_lat3, output='latitude_10m_3')
+
+    #layers_lat4 = grass.parse_command('g.list', type='raster', separator='comma', pattern='*latitude_tile_1*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_lat4, output='latitude_10m_4')
+    
+    #layers_lat = grass.parse_command('g.list', type='raster', pattern='*latitude*', mapset='g_EnergyResources_SolarRadiation')
+    #grass.run_command('r.patch', overwrite=True, input=layers_lat, output=r_latitude_10)
+
+    # merge groups and delete temporary files
+    #grass.run_command('r.patch', overwrite=True, input='latitude_10m_1,latitude_10m_2,latitude_10m_3,latitude_10m_4', output=r_latitude_10)
+    #grass.run_command('g.remove', type='raster', name='latitude_10m_1,latitude_10m_2,latitude_10m_3,latitude_10m_4', flags='f')
+
+    #--------------------------------------------------------#
+    #---------------- DISTANCE FROM OPEN SEA ----------------#
+    #--------------------------------------------------------#
+    r_sea = 'sea_10m'
+
+    # 1. extract only sea (1-null)
+    #TODO - what code is sea?
+    #grass.run_command('r.mapcalc', overwrite = True, expression=r_sea+'= \
+    #                  if('+r_land_cover+'==1202,1,null())')
+
+    # 2. measure distance from inland pixels to sea coast
+    r_sea_distance = 'sea_distance_10m'
+    #grass.run_command('r.grow.distance', overwrite=True, input=r_sea, distance=r_sea_distance)
+
+    # 3. extract open sea (further than 1 km from coast)
+    r_sea_open = 'sea_open_10m'
+    limit = 500
+    #grass.run_command('r.grow.distance', overwrite=True, input=r_sea, distance=r_sea_open, flags = 'n')
+    #grass.run_command('r.mapcalc', overwrite = True, expression=r_sea_open+'= \
+    #                  if('+r_sea_open+'>='+str(limit)+',1,null())')
+
+    # 4. measure distance from inland pixels to open sea
+    r_sea_open_distance = 'sea_open_distance_10m'
+    #grass.run_command('r.grow.distance', overwrite=True, input=r_sea_open, distance=r_sea_open_distance)
+
+    # 5. compute number of sea pixels in various neighbourhoods
+    # TODO what size
+    size = 101
+    r_sea_count = 'sea_count_' + str(size) + '_10m'
+    #grass.run_command('r.neighbors', overwrite = True, input=r_sea, output=r_sea_count, method='sum', size=size, flags = 'c')
+    #grass.run_command('r.mapcalc', overwrite = True, expression=r_sea_count+'=\
+    #                  if(isnull('+r_sea_count+'),0,'+r_sea_count+')')
+    #grass.run_command('r.mapcalc', overwrite = True, expression=r_sea_count+'=\
+    #                  if(isnull('+r_sea+'),'+r_sea_count+',null())')
+
+
+    #-------------------------------------------------#
+    #---------------- TERRAIN INDICES ----------------#
+    #-------------------------------------------------#
+    
+    size = 3
+
+    # prepare filtered DEM
+    r_height_avg = 'dem_avg' + str(size) + '0_10m'
+    grass.run_command('r.neighbors', overwrite=True, input=r_height, output=r_height_avg, size=size, flags='c')
+    
+    r_height_min = 'dem_min' + str(size) + '0_10m'
+    grass.run_command('r.neighbors', overwrite=True, input=r_height, output=r_height_min, size=size, method='minimum', flags='c')
+
+    r_height_max = 'dem_max' + str(size) + '0_10m'
+    grass.run_command('r.neighbors', overwrite=True, input=r_height, output=r_height_max, size=size, method='maximum', flags='c')
+ 
+    r_height_range = 'dem_range' + str(size) + '0_10m'
+    grass.run_command('r.neighbors', overwrite=True, input=r_height, output=r_height_range, size=size, method='range', flags='c')
+    
+
+    # TRI
+    r_tri = 'dem_10m_nosefi_float_tri'
+    #grass.run_command('r.tri', overwrite=True, wsize=1, dem=r_height, tri=r_tri)
+    
+    # TPI
+    r_tpi = 'dem_10m_nosefi_float_tpi_' + str(size) + '0'
+    #grass.run_command('r.mapcalc', expression=r_tpi+'='+r_height_avg+'-'+r_height)
+
+    # RTP
+    r_rtp = 'dem_10m_nosefi_float_rtp_' + str(size) + '0'
+    #grass.run_command('r.mapcalc', expression=r_rtp+'=('+r_height+'-'+r_height_min+')/('+r_height_max+'-'+r_height_min+')')
+    
+    # SDE
+    r_sde = 'dem_10m_nosefi_float_sde_' + str(size) + '0'
+    #grass.run_command('r.mapcalc', overwrite=True, expression=r_sde+'=('+r_height_avg+'-'+r_height+')/('+r_height_range+')')
+    
+    # Slope terrain variation
+    r_stv = 'dem_10m_nosefi_float_slope_std'
+    r_slope = 'dem_10m_nosefi_float_slope@PERMANENT'
+    grass.run_command('r.neighbors', overwrite=True, input=r_slope, output=r_stv, method='stddev', flags='c')
+
+
+    #----------------------------------------------------------------#
+    #---------------- EXPORT TO CSV FILE TO USE IN R ----------------#
+    #----------------------------------------------------------------#
+    table_variables = '/home/zofie.cimburova/ECOFUNC/DATA/variables.csv'
+    
+    # coordinates of forest line
+    # dependent variable
+    # limitation of forest line
+    # temperature BIO11
+    # temperature BIO10
+    # temperature BIO01
+    # precipitation BIO18
+    # precipitation BIO19
+    # precipitation BIO12
+    # solar radiation
+    # latitude
+    # longitude
+    # aspect
+    # slope
+    #input_variables = r_forest_line+','+\
+    #                  r_height+','+\
+    #                  r_height_250_forest_diff+','+\
+    #                  r_temperature_bio11_10m+','+\
+    #                  r_temperature_bio10+','+\
+    #                  r_temperature_bio01+','+\
+    #                  'WorldClim_current_bio18_1975@g_Meteorology_Fenoscandia_WorldClim_current'+','+\
+    #                  'WorldClim_current_bio19_1975@g_Meteorology_Fenoscandia_WorldClim_current'+','+\
+    #                  'WorldClim_current_bio12_1975@g_Meteorology_Fenoscandia_WorldClim_current'+','+\
+    #                  'GlobalRadiation_10m_doy_090@g_EnergyResources_SolarRadiation'+','+\
+    #                  'latitude_10m_2@u_zofie.cimburova'+','+\
+    #                  'longitude_10m_2@u_zofie.cimburova'+','+\
+    #                  'DEM_10m_Norge_aspect@PERMANENT'+','+\
+    #                  'DEM_10m_Norge_slope@PERMANENT'   
+
+    #grass.run_command('r.out.xyz', overwrite=True, input=input_variables,\
+    #                  output=table_variables, separator='comma')
+
+
+
+    #------------------------------------------------------#
+    #----------------------- USEFUL -----------------------#
+    #------------------------------------------------------#
+
+    #--- import layers from PostGIS to GRASS
+    #b = grass.parse_command('v.import', input='PG:dbname=gisdata', layer='zofie_cimburova.clip_finland_dense', output='juhuhu2', overwrite = 1)
+
+    #--- layer info
+    
+    # get information about layer
+    #print source_layer.GetName()
+
+
+    #print "Name  -  Type  Width  Precision"
+    
+    #for i in range(layerDefinition.GetFieldCount()):
+    #    fieldName =  layerDefinition.GetFieldDefn(i).GetName()
+    #    fieldTypeCode = layerDefinition.GetFieldDefn(i).GetType()
+    #    fieldType = layerDefinition.GetFieldDefn(i).GetFieldTypeName(fieldTypeCode)
+    #    fieldWidth = layerDefinition.GetFieldDefn(i).GetWidth()
+    #    GetPrecision = layerDefinition.GetFieldDefn(i).GetPrecision()
+
+    #   print fieldName + " - " + fieldType+ " " + str(fieldWidth) + " " + str(GetPrecision)
+
+    # get attribute ID_l1 of first 10 features
+    #for i in range(0,10):
+    #    feat = source_layer.GetFeature(i)
+    #    print feat.GetFieldAsInteger (1)
+
+
+
+  
+if __name__ == '__main__':
+    main()
