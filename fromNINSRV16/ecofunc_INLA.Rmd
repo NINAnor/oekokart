@@ -1,0 +1,415 @@
+---
+title: "Bayesian Matérn model fitted with INLA"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+knitr::opts_chunk$set(echo = TRUE)
+source("/home/zofie.cimburova/git/oekokart/ecofunc_helpful_functions.R")
+opts_knit$set(root.dir = "/home/zofie.cimburova/ECOFUNC/DATA/OBSERVATIONS")
+```
+
+```{r, include=FALSE}
+library(ggplot2)
+```
+
+Predict probability of success in a cell from environmental variables.
+
+### Problem I encountered:
+Whilst running the model with fixed effects only always gives indentical results, including random effects causes the results to differ. Globally (expressed as mean absolute difference), the differences are not very big (at third decimal place), but locally may be much larger, causing a pixel to be classified as forest in one run and open land in second run.
+
+
+Subset of data to test on:
+```{r, include=FALSE}
+# subset for testing
+#test_inp_data <- input_data_na_rm.scaled[input_data_na_rm.scaled$x < 400000 & # x (-75500, 1156500)
+#                                     input_data_na_rm.scaled$x >=  0 & 
+#                                     input_data_na_rm.scaled$y <  7100000 & # y (6451500, 7939500)
+#                                     input_data_na_rm.scaled$y >= 6700000,]
+test_inp_data <- input_data_na_rm.scaled
+
+# number of rows and columns
+#nrows=ncols=400
+#nrows=1808
+#ncols=1414
+nrows=nrows.test=497
+ncols=ncols.test=412
+
+#test_inp_data$row <- test_inp_data$row - min(test_inp_data$row) + 1
+#test_inp_data$col <- test_inp_data$col - min(test_inp_data$col) + 1
+```
+
+# 0. Divide data into one dataset to fit and another dataset to validate
+Regular grid.
+Every 3rd pixel.
+```{r, message=FALSE}
+# only even rows and even columns for fitting
+#test_data <- test_inp_data[(test_inp_data$row%%3 == 0 & test_inp_data$col%%3 == 0),]
+test_data <- test_inp_data
+
+# rest for validation
+#validate_data <- test_inp_data[(test_inp_data$row%%3 != 0 | test_inp_data$col%%3 != 0),]
+
+# change row and column number in test data (squeeze)
+#test_data$row <- test_data$row/3
+#test_data$col <- test_data$col/3
+
+# assign INLA ID
+#nrows.test = floor(nrows/3)
+#ncols.test = floor(ncols/3)
+#test_data$ID <- inla.lattice2node(test_data$row, test_data$col, nrows.test, ncols.test)
+
+# order data by ID
+test_data <- test_data[order(test_data$ID),]
+
+```
+```{r, echo=FALSE}
+ggplot() + geom_tile(data=test_inp_data, aes(x=x, y=y, fill=lc)) + coord_equal() + ggtitle("Full data")
+#ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=lc)) + coord_equal() + ggtitle("Data for fitting")
+#ggplot() + geom_tile(data=validate_data, aes(x=x, y=y, fill=lc)) + coord_equal() + ggtitle("Validation data")
+```
+
+# 1. Shapes of Matern covariance function
+Effective range of spatial autocorrelation in proportion of forest / open land: 125 km
+Effective range of spatial autocorrelation in pearson residuals of GLM: 53 km
+Effective range of spatial autocorrelation in deviance residuals of GLM: 70 km
+
+```{r, message=FALSE}
+range=53/3
+nu=1
+```
+
+
+# 2. Fit a model with random and fixed effects
+
+```{r, message=FALSE}
+require(INLA)
+models_complete <- list()
+#models_400 <- list()
+
+formula1 <- lc ~ water + curvature + slope + bio10 + bio15 + bio19 + tpi_10000 + exposure + bio02 + height + 
+                            f(ID, model='matern2d',
+                              nrow=nrows.test, ncol=nrows.test, nu=nu,
+                              hyper=list(range=list(initial=log(range), fixed=TRUE),
+                                         prec=list(initial=log(precision), fixed=TRUE))) 
+formula2 <- lc ~ water_t + slope_t + bio10 + bio15 + bio19 + tpi_10000 + exposure_t + bio02 + height_t + 
+                            f(ID, model='matern2d',
+                              nrow=nrows.test, ncol=nrows.test, nu=nu,
+                              hyper=list(range=list(initial=log(range), fixed=TRUE),
+                                         prec=list(initial=log(precision), fixed=TRUE))) 
+formula3 <- lc ~ water_t + slope_t + bio10 + bio15 + bio19 + tpi_10000 + exposure_t + bio02 + height_t + solrad_jan +
+                            f(ID, model='matern2d',
+                              nrow=nrows.test, ncol=nrows.test, nu=nu,
+                              hyper=list(range=list(initial=log(range), fixed=TRUE),
+                                         prec=list(initial=log(precision), fixed=TRUE))) 
+
+formulas = c(formula1)
+
+i = 1
+#for (precision in c(0.01,0.1,1,10,100,1000,10000,100000)) {
+for (formula in formulas) {
+  precision = 10000
+  
+  
+  matern <- inla(formula=formula,
+                  data=test_data,
+                  family='binomial',
+                  Ntrials=1,
+                  verbose=F,
+                  control.inla=list(tolerance=1e-6), # control.compute=list(dic=TRUE, waic=TRUE), 
+                  control.fixed=list(prec.intercept=0.001), # can be omitted 
+                  control.predictor=list(link=1),
+                  num.threads = 11)
+  
+  # save model  
+  models_complete[[i]] <- matern
+  i = i+1
+}
+```
+
+Identical model without random effect for comparison:
+```{r, message=FALSE}
+formula.matern.9 <- nsuccess ~ water_t + curvature + slope_t + bio10 + bio15 + bio19 + tpi_10000 + exposure_t + bio02 + height_t
+                            
+matern <- inla(formula=formula.matern.9,
+                  data=test_data,
+                  family='binomial',
+                  Ntrials=ntrials,
+                  verbose=F,
+                  control.inla=list(tolerance=1e-6),
+                  control.compute=list(dic=TRUE, waic=TRUE),
+                  control.fixed=list(prec.intercept=0.001), # can be omitted
+                  control.predictor=list(link=1),
+                  num.threads = 12) 
+
+# save model  
+models_complete[[i]] <- matern
+i = i+1
+```
+
+# 3. Summarize results:
+```{r, include=FALSE}
+# fitted values (DO NOT SHUFFLE INPUT DATA FRAME!!!)
+test_data <- append.fitted(test_data, models_complete[[1]]$summary.fitted.values, "fitted.values.1")
+#test_data <- append.fitted(test_data, models_400[[2]]$summary.fitted.values, "fitted.values.2")
+#test_data <- append.fitted(test_data, models_400[[3]]$summary.fitted.values, "fitted.values.3")
+#test_data <- append.fitted(test_data, models_complete[[4]]$summary.fitted.values, "fitted.values.4")
+#test_data <- append.fitted(test_data, models_complete[[5]]$summary.fitted.values, "fitted.values.5")
+#test_data <- append.fitted(test_data, models_complete[[6]]$summary.fitted.values, "fitted.values.6")
+#test_data <- append.fitted(test_data, models_complete[[7]]$summary.fitted.values, "fitted.values.7")
+#test_data <- append.fitted(test_data, models_complete[[8]]$summary.fitted.values, "fitted.values.8")
+#test_data <- append.fitted(test_data, models_complete[[9]]$summary.fitted.values, "fitted.values.9")
+
+# absolute residuals (p)
+test_data$residuals.abs.1 <- test_data$lc - test_data$fitted.values.1
+#test_data$residuals.abs.2 <- test_data$lc_proportion - test_data$fitted.values.2
+#test_data$residuals.abs.3 <- test_data$lc_proportion - test_data$fitted.values.3
+#test_data$residuals.abs.4 <- test_data$lc_proportion - test_data$fitted.values.4
+#test_data$residuals.abs.5 <- test_data$lc_proportion - test_data$fitted.values.5
+#test_data$residuals.abs.6 <- test_data$lc_proportion - test_data$fitted.values.6
+#test_data$residuals.abs.7 <- test_data$lc_proportion - test_data$fitted.values.7
+#test_data$residuals.abs.8 <- test_data$lc_proportion - test_data$fitted.values.8
+#test_data$residuals.abs.9 <- test_data$lc_proportion - test_data$fitted.values.9
+
+# pearson residuals (logit(p))
+#test_data$residuals.pearson.1 <- residuals.pearson(test_data$lc,test_data$fitted.values.1)
+#test_data$residuals.pearson.2 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.2)
+#test_data$residuals.pearson.3 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.3)
+#test_data$residuals.pearson.4 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.4)
+#test_data$residuals.pearson.5 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.5)
+#test_data$residuals.pearson.6 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.6)
+#test_data$residuals.pearson.7 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.7)
+#test_data$residuals.pearson.8 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.8)
+#test_data$residuals.pearson.9 <- residuals.pearson(test_data$lc_proportion,test_data$fitted.values.9)
+
+# random effects (p)
+test_data <- append.random(test_data, models_complete[[1]]$summary.random$ID, "random.effect.1")
+#test_data <- append.random(test_data, models_400[[2]]$summary.random$ID, "random.effect.2")
+#test_data <- append.random(test_data, models_400[[3]]$summary.random$ID, "random.effect.3")
+#test_data <- append.random(test_data, models_complete[[4]]$summary.random$ID, "random.effect.4")
+#test_data <- append.random(test_data, models_complete[[5]]$summary.random$ID, "random.effect.5")
+#test_data <- append.random(test_data, models_complete[[6]]$summary.random$ID, "random.effect.6")
+#test_data <- append.random(test_data, models_complete[[7]]$summary.random$ID, "random.effect.7")
+#test_data <- append.random(test_data, models_complete[[8]]$summary.random$ID, "random.effect.8")
+
+# fixed effects (p)
+observed.values <- test_data[,c("water","curvature","slope","bio10",
+                                "bio15","bio19","tpi_10000","exposure","bio02","height")]
+test_data$fixed.effect.1 <- fixed.effects(models_complete[[1]]$summary.fixed$mean, observed.values)
+#observed.values <- test_data[,c("water_t","slope_t","bio10",
+#                                "bio15","bio19","tpi_10000","exposure_t","bio02","height_t")]
+#test_data$fixed.effect.2 <- fixed.effects(models_400[[2]]$summary.fixed$mean, observed.values)
+#observed.values <- test_data[,c("water_t","slope_t","bio10",
+#                                "bio15","bio19","tpi_10000","exposure_t","bio02","height_t","solrad_jan")]
+#test_data$fixed.effect.3 <- fixed.effects(models_400[[3]]$summary.fixed$mean, observed.values)
+#test_data$fixed.effect.4 <- fixed.effects(models_complete[[4]]$summary.fixed$mean, observed.values)
+#test_data$fixed.effect.5 <- fixed.effects(models_complete[[5]]$summary.fixed$mean, observed.values)
+#test_data$fixed.effect.6 <- fixed.effects(models_complete[[6]]$summary.fixed$mean, observed.values)
+#test_data$fixed.effect.7 <- fixed.effects(models_complete[[7]]$summary.fixed$mean, observed.values)
+#test_data$fixed.effect.8 <- fixed.effects(models_complete[[8]]$summary.fixed$mean, observed.values)
+#test_data$fixed.effect.9 <- fixed.effects(models_complete[[9]]$summary.fixed$mean, observed.values)
+
+# absolute residuals of fixed effect (p)
+test_data$residuals.fixed.1 <- test_data$lc_proportion - test_data$fixed.effect.1
+#test_data$residuals.fixed.2 <- test_data$lc_proportion - test_data$fixed.effect.2
+#test_data$residuals.fixed.3 <- test_data$lc_proportion - test_data$fixed.effect.3
+#test_data$residuals.fixed.4 <- test_data$lc_proportion - test_data$fixed.effect.4
+#test_data$residuals.fixed.5 <- test_data$lc_proportion - test_data$fixed.effect.5
+#test_data$residuals.fixed.6 <- test_data$lc_proportion - test_data$fixed.effect.6
+#test_data$residuals.fixed.7 <- test_data$lc_proportion - test_data$fixed.effect.7
+#test_data$residuals.fixed.8 <- test_data$lc_proportion - test_data$fixed.effect.8
+#test_data$residuals.fixed.9 <- test_data$lc_proportion - test_data$fixed.effect.9
+```
+
+## Conclusion 1: Influence of precision on coefficients of fixed effects
+```{r, include=FALSE}
+library("reshape2")
+coefficients.summary <- as.data.frame(rbind(models_complete[[1]]$summary.fixed$mean,
+                                            models_complete[[2]]$summary.fixed$mean,
+                                            models_complete[[3]]$summary.fixed$mean,
+                                            models_complete[[4]]$summary.fixed$mean,
+                                            models_complete[[5]]$summary.fixed$mean,
+                                            models_complete[[6]]$summary.fixed$mean,
+                                            models_complete[[7]]$summary.fixed$mean,
+                                            models_complete[[8]]$summary.fixed$mean))
+
+coefficients.summary.glm <- as.data.frame(rbind(models_complete[[9]]$summary.fixed$mean))
+
+colnames(coefficients.summary) <- c("Intercept","water_t","curvature","slope_t","bio10",
+                                "bio15","bio19","tpi_10000","exposure_t","bio02","height_t")
+colnames(coefficients.summary.glm) <- c("Intercept","water_t","curvature","slope_t","bio10",
+                                "bio15","bio19","tpi_10000","exposure_t","bio02","height_t")
+
+coefficients.summary$precision <- c(0.01,0.1,1,10,100,1000,10000,100000)
+coefficients.summary.glm$precision <- c(110000)
+
+coefficients.summary.long <- melt(coefficients.summary,id="precision")
+coefficients.summary.glm.long <- melt(coefficients.summary.glm,id="precision")
+```
+
+```{r, echo=FALSE}
+ggplot() + 
+  geom_line(data=coefficients.summary.long, aes(x=precision, y=value, colour=variable)) +
+  geom_point(data=coefficients.summary.glm.long, aes(x=precision, y=value, colour=variable)) + 
+  scale_color_manual(values=c("gray36", "dodgerblue4","gold", "darkcyan","firebrick2", 
+                              "darkorange2","forestgreen", "darkolivegreen3","hotpink", "tomato2","red"))
+```
+
+## Conclusion 2: Influence of precision on fixed effects, random effects and residuals
+```{r, echo=FALSE, fig.height = 10, fig.width = 10}
+style = theme(axis.line=element_blank(),axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),legend.position="none",
+          panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),plot.background=element_blank())
+
+ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=lc_proportion)) + coord_equal() + ggtitle("original data") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen")
+
+# fitted values
+a1 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.1)) + coord_equal() + ggtitle("fitted values 1") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+a2 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.2)) + coord_equal() + ggtitle("fitted values 2") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+a3 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.3)) + coord_equal() + ggtitle("fitted values 3") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#a4 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.4)) + coord_equal() + ggtitle("fitted values 4") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#a5 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.5)) + coord_equal() + ggtitle("fitted values 5") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#a6 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.6)) + coord_equal() + ggtitle("fitted values 6") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#a7 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.7)) + coord_equal() + ggtitle("fitted values 7") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#a8 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.8)) + coord_equal() + ggtitle("fitted values 8") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#a9 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fitted.values.9)) + coord_equal() + ggtitle("fitted values 9") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+
+multiplot(a1,a2,a3,cols=2)#,a4,a5,a6,a7,a8,a9,cols=2)
+
+# fixed effect
+b1 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fixed.effect.1)) + coord_equal() + ggtitle("fixed effect 1") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+b2 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fixed.effect.2)) + coord_equal() + ggtitle("fixed effect 2") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+b3 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=fixed.effect.3)) + coord_equal() + ggtitle("fixed effect 3") +  scale_fill_gradient(limits=c(0,1), low = "bisque3", high = "darkgreen") + style
+#b4 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(fixed.effect.4))) + coord_equal() + ggtitle("fixed effect 4") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#b5 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(fixed.effect.5))) + coord_equal() + ggtitle("fixed effect 5") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#b6 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(fixed.effect.6))) + coord_equal() + ggtitle("fixed effect 6") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#b7 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(fixed.effect.7))) + coord_equal() + ggtitle("fixed effect 7") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#b8 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(fixed.effect.8))) + coord_equal() + ggtitle("fixed effect 8") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#b9 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(fixed.effect.9))) + coord_equal() + ggtitle("fixed effect 9") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+
+multiplot(b1,b2,b3,cols=2)#,b4,b5,b6,b7,b8,b9,cols=2)
+
+# residuals
+c1 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.1)) + coord_equal() + ggtitle("absolute residuals 1") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+c2 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.2)) + coord_equal() + ggtitle("absolute residuals 2") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+c3 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.3)) + coord_equal() + ggtitle("absolute residuals 3") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#c4 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.4)) + coord_equal() + ggtitle("absolute residuals 4") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#c5 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.5)) + coord_equal() + ggtitle("absolute residuals 5") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#c6 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.6)) + coord_equal() + ggtitle("absolute residuals 6") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#c7 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.7)) + coord_equal() + ggtitle("absolute residuals 7") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#c8 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.8)) + coord_equal() + ggtitle("absolute residuals 8") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#c9 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.abs.9)) + coord_equal() + ggtitle("absolute residuals 9") + scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+
+multiplot(c1,c2,c3,cols=2)#,c4,c5,c6,c7,c8,c9,cols=2)
+
+# random effect
+d1 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.1))) + coord_equal() + ggtitle("random effect 1") +  scale_fill_gradient2(limits=c(-0.04,0.04), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+d2 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.2))) + coord_equal() + ggtitle("random effect 2") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+d3 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.3))) + coord_equal() + ggtitle("random effect 3") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#d4 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.4))) + coord_equal() + ggtitle("random effect 4") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#d5 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.5))) + coord_equal() + ggtitle("random effect 5") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#d6 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.6))) + coord_equal() + ggtitle("random effect 6") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#d7 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.7))) + coord_equal() + ggtitle("random effect 7") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#d8 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=logit(random.effect.8))) + coord_equal() + ggtitle("random effect 8") +  scale_fill_gradient2(limits=c(-10,10), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+
+multiplot(d1,d2,d3,cols=2)#,d4,d5,d6,d7,d8,cols=2)
+
+# absolute residuals of fixed effect
+e1 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.1)) + coord_equal() + ggtitle("absolute residuals of fixed effect 1") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+e2 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.2)) + coord_equal() + ggtitle("absolute residuals of fixed effect 2") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+e3 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.3)) + coord_equal() + ggtitle("absolute residuals of fixed effect 3") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#e4 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.4)) + coord_equal() + ggtitle("absolute residuals of fixed effect 4") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#e5 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.5)) + coord_equal() + ggtitle("absolute residuals of fixed effect 5") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#e6 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.6)) + coord_equal() + ggtitle("absolute residuals of fixed effect 6") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#e7 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.7)) + coord_equal() + ggtitle("absolute residuals of fixed effect 7") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#e8 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.8)) + coord_equal() + ggtitle("absolute residuals of fixed effect 8") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+#e9 <- ggplot() + geom_tile(data=test_data, aes(x=x, y=y, fill=residuals.fixed.9)) + coord_equal() + ggtitle("absolute residuals of fixed effect 9") +  scale_fill_gradient2(limits=c(-1,1), low = "dodgerblue2", mid = "cornsilk1", high = "red2", midpoint = 0) + style
+
+multiplot(e1,e2,e3,cols=2)#,e4,e5,e6,e7,e8,e9,cols=2)
+```
+
+
+## Conclusion 3: Influence of precision on spatial autocorrelation in Pearson residuals
+```{r, message=FALSE}
+  # choose random samples
+  sample.moran.I <- test_data[sample(nrow(test_data), 10000),c("x","y","residuals.pearson.1","residuals.pearson.2",
+                                                              "residuals.pearson.3","residuals.pearson.4",
+                                                              "residuals.pearson.5","residuals.pearson.6") ]
+
+  print(morans.I.ape(sample.moran.I,1000,"residuals.pearson.1"))
+  print(morans.I.ape(sample.moran.I,1000,"residuals.pearson.2"))
+  print(morans.I.ape(sample.moran.I,1000,"residuals.pearson.3"))
+  print(morans.I.ape(sample.moran.I,1000,"residuals.pearson.4"))
+  print(morans.I.ape(sample.moran.I,1000,"residuals.pearson.5"))
+  print(morans.I.ape(sample.moran.I,1000,"residuals.pearson.6"))
+```
+
+
+```{r, echo=FALSE}
+sa.summary <- data.frame(precision <- c(10,100,1000,10000,100000),
+                         sa50 <- c(0.00618154552186201,0.013143425826186,0.0255525641332435,0.0339726111956901,0.0438487773441474),
+                         sa10 <- c(0.00623831723683146,0.00726044290065922,0.0121028693862007,0.0394502005779933,0.0896333635937407))
+ggplot() + geom_line(data=sa.summary, aes(x=precision, y=sa50, color='blue')) +
+  geom_line(data=sa.summary, aes(x=precision, y=sa10, color='red')) + 
+  geom_point(aes(x=110000,y=0.20309925773823,color='blue')) + 
+  geom_point(aes(x=110000,y=0.44197766618071,color='red'))
+```
+
+## 5. Influence of precision and range on various parametres
+```{r, include=FALSE}
+criteria.precision <- data.frame(precision = seq(0.05,20,0.05),
+                                 DIC = DIC,
+                                 WAIC = WAIC,
+                                 pD = pD,
+                                 N_pD = N_pD)
+criteria.range <- data.frame(range = seq(1,200,1),
+                             DIC = DIC,
+                             WAIC = WAIC,
+                             pD = pD,
+                             N_pD = N_pD)
+
+
+ggplot(criteria.precision) + geom_line(aes(x=precision, y=DIC)) + xlab("Precision") + ylab("DIC") 
+ggplot(criteria.precision) + geom_line(aes(x=precision, y=WAIC)) + xlab("Precision") + ylab("WAIC") 
+ggplot(criteria.precision) + geom_line(aes(x=precision, y=pD)) + xlab("Precision") + ylab("Number of estimated parametres") 
+ggplot(criteria.precision) + geom_line(aes(x=precision, y=N_pD)) + xlab("Precision") + ylab("Number of effective replicates") 
+
+ggplot(criteria.range) + geom_line(aes(x=range, y=DIC)) + xlab("Range") + ylab("DIC") 
+ggplot(criteria.range) + geom_line(aes(x=range, y=WAIC)) + xlab("Range") + ylab("WAIC") 
+ggplot(criteria.range) + geom_line(aes(x=range, y=pD)) + xlab("Range") + ylab("Number of estimated parametres") 
+ggplot(criteria.range) + geom_line(aes(x=range, y=N_pD)) + xlab("Range") + ylab("Number of effective replicates") 
+
+```
+
+
+## 4. Export fixed effects
+```{r, include=FALSE}
+output_data <- cbind(rownames(models_complete[[1]]$summary.fixed), 
+                     models_complete[[1]]$summary.fixed$mean,
+                     c(0,colMeans(input_data_na_rm[,c("water_t","curvature","slope_t",
+                                                  "bio10","bio15","bio19","tpi_10000",
+                                                  "exposure_t","bio02","height_t")])),
+                     c(0,apply(input_data_na_rm[,c("water_t","curvature","slope_t",
+                                               "bio10","bio15","bio19","tpi_10000",
+                                               "exposure_t","bio02","height_t")], 2, sd)))
+
+write.table(output_data,
+            file="/home/zofie.cimburova/ECOFUNC/DATA/OBSERVATIONS/fixed_effects_coefficients.csv",sep=',',quote=FALSE)
+```
+
+## 5. Export random effects
+```{r, include=FALSE}
+raster <- rasterFromXYZ(cbind(test_data$x,test_data$y,logit(test_data$random.effect.1)))
+crs(raster) <- "+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+writeRaster(raster, "/home/zofie.cimburova/ECOFUNC/DATA/OBSERVATIONS/random_effect", format = "GTiff", overwrite=TRUE)
+```
+
+
+
+
+
+
