@@ -30,8 +30,8 @@ data_dict = {
 },
 "wind_exposure": {
     "v_aspect_sin": {"mapname": "", "mapset": "", "description": "Sinus function of aspect (originally in 360 deg)"}
-    "v_aspect_cos": {"mapname": "", "mapset": "", "description": "Coinus function of aspect (originally in 360 deg)"}
-    "v_profc": {"mapname": "", "mapset": "", "description": "Profil curvature of the terrain"}
+    "v_aspect_cos": {"mapname": "", "mapset": "", "description": "Cosinus function of aspect (originally in 360 deg)"}
+    "v_profc": {"mapname": "", "mapset": "", "description": "Profile curvature of the terrain"}
     "v_topex_e": {"mapname": "", "mapset": "", "description": ""},
     "v_topex_se": {"mapname": "", "mapset": "", "description": ""},
     "v_topex_ne": {"mapname": "", "mapset": "", "description": ""},
