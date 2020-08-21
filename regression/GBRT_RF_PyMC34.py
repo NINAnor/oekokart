@@ -14,6 +14,8 @@ import pickle
 
 from itertools import product
 
+from datetime import datetime
+
 # Import libraries for matrix operations
 import numpy as np
 import numpy.lib.recfunctions as rf
@@ -101,7 +103,23 @@ def update_attributes(vmap, layer=1, meta_dict=data_dict, varname=None):
                 gs.run_command("g.region", align=rmap, vector=vmap)
                 gs.run_command("v.what.rast", map=vmap, layer=layer, raster=rmap, column=varname)
                 gs.del_temp_region()
+    return None
 
+
+def get_vector_filters(vmap, layer=1, meta_dict=data_dict, filter_type="human_influence", varname=None, dmax=1000, to_column="dyr_per_areal"):
+    filter_var = data_dict["filter"][filter_type][varname]
+
+    fmap = filter_var["mapname"] + "@" + filter_var["mapset"]
+    if not varname in gs.vector.vector_columns(vmap, layer=layer):
+        gs.run_command("v.db.addcolumn", map=vmap, layer=layer, columns="{} {}".format(varname, "real"))
+
+    gs.run_command("v.distance", from_=vmap, from_layer=layer, to=fmap, dmax=dmax, upload="to_attr", to_column=to_column, column=varname)
+    return None
+
+
+with Session(gisdb=gisdb, location=location, mapset=mapset):
+    import grass.script as gs
+    get_vector_filters(maps, layer=1, meta_dict=data_dict, filter_type="human_influence", varname="v_grazing", dmax=1000, to_column="dyr_per_areal")
 
 # save trained model
 def save_model(directory, name, trace, model):
@@ -247,6 +265,11 @@ with Session(gisdb=gisdb, location=location, mapset=mapset):
                 print("Error raster map <{}> not found!".format(rmaps[idx]))
             update_attributes(maps, layer=layer, meta_dict=data_dict, varname=col)
 
+"""
+with Session(gisdb=gisdb, location=location, mapset=mapset):
+    import grass.script as gs
+    update_attributes(maps, layer=layer, meta_dict=data_dict, varname='v_wind_speed_at_100m')
+"""
 
 with Session(gisdb=gisdb, location=location, mapset=mapset, create_opts=""):
     # from grass.pygrass import raster as r
@@ -322,10 +345,13 @@ all_y = shuffle(data[all_y_idx])
 #    print(np.corrcoef(all_y[cor_comb[0]], all_y[cor_comb[1]])[0][1])
 
 df = pd.DataFrame(all_y, copy=True)
-plt.scatter(df["v_x"], df["v_y"], c=df["value"])
+plt.scatter(df["v_x"], df["v_y"], c=df["value"], s=0.05)
+plt.scatter(df["v_x"][df["v_grazing"] == 0], df["v_y"][df["v_grazing"] == 0], c=df["v_bio10_wc"][df["v_grazing"] == 0], s=0.05)
 
-df_corr = df.corr()
-sns.heatmap(df_corr, xticklabels=df_corr.columns, yticklabels=df_corr.columns)
+for ft in set(meta_df["Group"][meta_df["factor_type"]=="predictor"]):
+    gvars = set(meta_df["Variable name"][meta_df["Group"]==ft])
+    df_corr = df[gvars].corr()
+    sns.heatmap(df_corr, xticklabels=df_corr.columns, yticklabels=df_corr.columns)
 
 df_mean = df.groupby("value").mean()
 df_min = df.groupby("value").min()
@@ -647,10 +673,10 @@ msk = np.random.rand(len(df)) < 0.5
 df_train = df[msk]
 df_test = df[~msk]
 
-models_train_pct = {}
+df_filtered = df_train[df_train["v_grazing"]==0]
 
-msk = np.random.rand(len(df_train)) < 0.1
-df_in = df_train[msk]
+#msk = np.random.rand(len(df_train)) < 0.1
+#df_in = df_train[msk]
 
 # Consider weighting up forest pixels as we know that there are false open pixels in the training data???
 # Minimize false mountain classification
@@ -661,8 +687,7 @@ feature_combinations = list(product(*[dkey.keys() for dkey in data_dict["predict
 comb_n = len(feature_combinations)
 savepoints = list(range(0, comb_n, 1000))
 
-from datetime import datetime
-run_start = datetime.now().strftime("%Y%m%d%H%M%S")
+run_start = datetime.now().strftime("%Y%m%d")
 run_dir = "/mnt/ecofunc-data/forest_line_model/run_{}".format(run_start)
 plot_dir = os.path.join(run_dir, "plots")
 log_dir = os.path.join(run_dir, "logs")
@@ -670,13 +695,22 @@ log_dir = os.path.join(run_dir, "logs")
 for rdir in [run_dir, plot_dir, log_dir]:
     if not os.path.exists(rdir):
         os.makedirs(rdir)
-from sklearn.metrics import f1_score
 
-for pct in [0.1, 0.2, 0.3]: #0.10, 0.25, 0.5, 0.75, 1.0
+def get_correlation(df=df, features=features, method="spearman"):
+    corr = np.sqrt(df[features].corr(method=method, min_periods=1)**2)
+    if {"v_x","v_y"}.issubset(set(corr.columns)):
+        corr = corr.drop(["v_x","v_y"], axis=1)
+    corr = corr.values.flatten()
+    corr = corr[corr!=1]
+    corr[::-1].sort()
+    return corr
+
+
+for train_n in [10000, 20000, 30000]: #0.10, 0.25, 0.5, 0.75, 1.0
     mod_comp = pd.DataFrame(columns=[
                         "model_type",
                         "training_n",
-                        "autocorr",
+                        "spatial_term",
                         "weight",
                         "filter",
                         "features",
@@ -689,41 +723,51 @@ for pct in [0.1, 0.2, 0.3]: #0.10, 0.25, 0.5, 0.75, 1.0
                         "confusion_1_1",
                         "confusion_error",
                         "confusion_correct",
+                        "correlation_average",
+                        "correlation_max",
+                        "correlation_second",
                         ])
 
-    pct_string = f"{pct:.2f}"
-    msk = np.random.rand(len(df_train)) < pct
-    df_in = df_train[msk]
+    train_n_string = f"{train_n:.2f}"
+    #msk = np.random.randint(0, len(df_train), train_n if train_n < len(df_train) else len(df_train))
+    #msk_filtered = np.random.randint(0, len(df_filtered), train_n if train_n < len(df_filtered) else len(df_filtered))
+    df_in = df_train.sample(train_n if train_n < len(df_train) else len(df_train)) #[msk]
+    df_in_filtered = df_filtered.sample(train_n if train_n < len(df_filtered) else len(df_filtered)) #[msk_filtered]
 
     for idx, features in enumerate(feature_combinations):
         features = list(features)
-        for autocorr in ["non-spatial", "spatial"]:
-            if autocorr == "non-spatial":
+
+        for spatial_term in ["non-spatial", "spatial"]:
+            if spatial_term == "non-spatial":
                 pass
             else:
-                features = list(features) + ["v_x", "v_y"]
+                features = features + ["v_x", "v_y"]
+
+            corr = get_correlation(df=df_in, features=features, method="spearman")
+            corr_filtered = get_correlation(df=df_in_filtered, features=features, method="spearman")
 
             for mod_type in ["rf", "gbrt"]:
                 if mod_type == "rf":
-                    clf = ensemble.RandomForestClassifier(n_jobs=cores)
+                    # With few samples < 90 000 multiprocessing has to much overhead and is slower than parallel processing
+                    clf = ensemble.RandomForestClassifier()
                 else:
                     clf = ensemble.GradientBoostingClassifier()
                 for train in ["unfiltered", "filtered"]: #["value", "weight"]]:
                     if train == "unfiltered":
                         df_use = df_in
+                        corr_use = corr
                     else:
-                        df_use = df_in[df_in["v_grazing"]>0]
-
+                        df_use = df_in_filtered
+                        corr_use = corr_filtered
                     for y_values in ["weighted", "unweighted"]: #["value", "weight"]]:
                         if y_values == "unweighted":
                             fit_params = {"sample_weight": None}
                             score_params = {"sample_weight": None}
-                            
                         else:
                             fit_params = {"sample_weight": df_use["weight"]}
                             score_params = {"sample_weight": df_test["weight"]}
 
-                        mod_name = "prediction_{}_{}_{}_{}_{}".format(mod_type, pct_string, train, y_values, "_".join(features))
+                        mod_name = "prediction_{}_{}_{}_{}_{}".format(mod_type, train_n_string, train, y_values, "_".join(features))
 
                         clf.fit(df_use[features], df_use["value"], **fit_params)
 
@@ -742,7 +786,7 @@ for pct in [0.1, 0.2, 0.3]: #0.10, 0.25, 0.5, 0.75, 1.0
 
                         cross_tab = pd.crosstab(df_test["value"], predictions)
 
-                        """models_train_pct[mod_name] = {
+                        """models_train_train_n[mod_name] = {
                             "R2": r2,
                             "mse": mse,
                             "confustion": pd.crosstab(df_test["value"], df_test[mod_name]), #round(cross_tab[0][1]/sum(cross_tab[0])*100, 2)
@@ -751,8 +795,8 @@ for pct in [0.1, 0.2, 0.3]: #0.10, 0.25, 0.5, 0.75, 1.0
                         }"""
                         mod_comp.loc[len(mod_comp), :] = [
                             mod_type,
-                            pct,
-                            autocorr,
+                            train_n,
+                            spatial_term,
                             y_values,
                             train,
                             features,
@@ -767,13 +811,16 @@ for pct in [0.1, 0.2, 0.3]: #0.10, 0.25, 0.5, 0.75, 1.0
                             round(cross_tab[1][1]/sum(cross_tab[0] + cross_tab[1])*100, 2),
                             round((cross_tab[1][0]+cross_tab[0][1])/sum(cross_tab[0] + cross_tab[1])*100, 2),
                             round((cross_tab[0][0]+cross_tab[1][1])/sum(cross_tab[0] + cross_tab[1])*100, 2),
-                            ]
+                            np.mean(corr_use),
+                            corr_use[0],
+                            corr_use[3],
+                           ]
                         print(idx)
-                        print("Current model: {}, {}, {}, {}, {}".format(mod_type, pct, train, y_values, "|".join(features)))
+                        print("Current model: {}, {}, {}, {}, {}".format(mod_type, train_n, train, y_values, "|".join(features)))
                         print("Accuracy: {} (+/- {})".format(cv_scores_f1.mean(), cv_scores_f1.std() * 2))
         
                 if idx in savepoints:
-                    mod_comp.to_hdf(os.path.join(log_dir, "mod_comb{}.hdf".format(pct_string.replace("-","_"))), key="mod_comp", mode="w")
+                    mod_comp.to_hdf(os.path.join(log_dir, "mod_comb{}.hdf".format(train_n_string.replace("-","_"))), key="mod_comp", mode="w")
 
 
 
@@ -867,7 +914,7 @@ fig = plt.figure()
 plt.scatter(df_test["v_x"], df_test["v_y"], c=df_test["value"] - pred_median, s=0.01)
 fig.savefig(os.path.join(plot_dir, "residuals_bayes.png"))
 
-models_train_pct["bayes_simple"] = {
+models_train_train_n["bayes_simple"] = {
     "R2": 0,
     "mse": 0,
     "confustion": pd.crosstab(df_test["value"], df_test["prediction"]),
@@ -911,7 +958,7 @@ plt.scatter(
 fig.savefig(os.path.join(plot_dir, "residuals_bayes_simple.png"))
 
 
-models_train_pct["bayes_simple"] = {
+models_train_train_n["bayes_simple"] = {
     "R2": 0,
     "mse": 0,
     "confustion": pd.crosstab(df_test["value"], df_test["prediction_simple"]),
